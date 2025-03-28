@@ -11,6 +11,13 @@ contextBridge.exposeInMainWorld("electronAPI", {
   getCurrentGeolocation: () => ipcRenderer.invoke("get-current-geolocation"),
   rotateGeolocation: () => ipcRenderer.invoke("rotate-geolocation"),
 
+  // VPN controls
+  getVpnConfigurations: () => ipcRenderer.invoke("get-vpn-configurations"),
+  getVpnStatus: () => ipcRenderer.invoke("get-vpn-status"),
+  connectVpn: (configIndex) => ipcRenderer.invoke("connect-vpn", configIndex),
+  disconnectVpn: () => ipcRenderer.invoke("disconnect-vpn"),
+  rotateVpn: () => ipcRenderer.invoke("rotate-vpn"),
+
   // Virtualization controls
   startVirtualization: () => ipcRenderer.invoke("start-virtualization"),
   stopVirtualization: () => ipcRenderer.invoke("stop-virtualization"),
@@ -28,4 +35,6 @@ contextBridge.exposeInMainWorld("electronAPI", {
     ipcRenderer.on("user-agent-changed", (_, userAgent) => callback(userAgent)),
   onGeolocationChanged: (callback) =>
     ipcRenderer.on("geolocation-changed", (_, geo) => callback(geo)),
+  onVpnStatusChanged: (callback) =>
+    ipcRenderer.on("vpn-status-changed", (_, status) => callback(status)),
 });

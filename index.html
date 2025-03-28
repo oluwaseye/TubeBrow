@@ -336,6 +336,48 @@
     #geo-info.visible {
       opacity: 1;
     }
+    #vpn-controls {
+      position: fixed;
+      top: 270px;
+      right: 10px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      z-index: 9996;
+    }
+    #vpn-btn {
+      background: #607D8B;
+    }
+    #vpn-btn:hover {
+      background: #455A64;
+    }
+    #vpn-info {
+      position: fixed;
+      bottom: 70px;
+      left: 50%;
+      transform: translateX(-50%);
+      background: rgba(96, 125, 139, 0.8);
+      color: white;
+      padding: 5px 10px;
+      border-radius: 4px;
+      font-size: 11px;
+      z-index: 996;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      max-width: 500px;
+      opacity: 0;
+      transition: opacity 0.5s;
+    }
+    #vpn-info.visible {
+      opacity: 1;
+    }
+    #vpn-info.connected {
+      background: rgba(76, 175, 80, 0.8);
+    }
+    #vpn-info.disconnected {
+      background: rgba(244, 67, 54, 0.8);
+    }
   </style>
 </head>
 <body>
@@ -371,8 +413,14 @@
     <button id="geo-btn" class="control-btn" title="Rotate Geolocation">📍</button>
   </div>
 
+  <div id="vpn-controls">
+    <div class="control-label">VPN</div>
+    <button id="vpn-btn" class="control-btn" title="Rotate VPN">🔒</button>
+  </div>
+
   <div id="virtualization-status">Virtualization: Inactive</div>
   <div id="geo-info"></div>
+  <div id="vpn-info"></div>
 
   <button id="videos-toggle" title="YouTube Videos">▶</button>
   <div id="videos-panel">
@@ -413,12 +461,16 @@
     const virtualizationStatus = document.getElementById('virtualization-status');
     const geoBtn = document.getElementById('geo-btn');
     const geoInfo = document.getElementById('geo-info');
+    const vpnBtn = document.getElementById('vpn-btn');
+    const vpnInfo = document.getElementById('vpn-info');
 
     let currentUrl = 'https://www.youtube.com';
     let youtubeVideos = [];
     let backlinksSites = [];
     let isVirtualizationActive = false;
     let currentGeolocation = null;
+    let vpnConnected = false;
+    let currentVpnLocation = '';
 
     // Hide help text
     hideHelp.addEventListener('click', (e) => {
@@ -457,6 +509,32 @@
       } catch (error) {
         console.error('Failed to rotate geolocation:', error);
       }
+    });
+
+    // Rotate VPN
+    vpnBtn.addEventListener('click', async () => {
+      try {
+        // Toggle VPN - if connected, disconnect, otherwise connect
+        if (vpnConnected) {
+          const disconnected = await window.electronAPI.disconnectVpn();
+          if (disconnected) {
+            updateVpnInfo(false, '');
+          }
+        } else {
+          const connected = await window.electronAPI.rotateVpn();
+          if (connected) {
+            updateVpnInfo(true, 'Connecting...');
+          }
+        }
+      } catch (error) {
+        console.error('Failed to toggle VPN:', error);
+      }
+    });
+
+    // Listen for VPN status changes
+    window.electronAPI.onVpnStatusChanged((status) => {
+      console.log('VPN status changed:', status);
+      updateVpnInfo(status.connected, status.location);
     });
 
     // Start virtualization
@@ -512,6 +590,29 @@
       setTimeout(() => {
         geoInfo.classList.remove('visible');
       }, 5000);
+    }
+
+    // Update VPN info display
+    function updateVpnInfo(connected, location) {
+      vpnConnected = connected;
+      currentVpnLocation = location;
+
+      if (connected) {
+        vpnInfo.textContent = `VPN: Connected to ${location}`;
+        vpnInfo.classList.add('visible', 'connected');
+        vpnInfo.classList.remove('disconnected');
+      } else {
+        vpnInfo.textContent = 'VPN: Disconnected';
+        vpnInfo.classList.add('visible', 'disconnected');
+        vpnInfo.classList.remove('connected');
+      }
+
+      // Show for 5 seconds if disconnected, keep visible if connected
+      if (!connected) {
+        setTimeout(() => {
+          vpnInfo.classList.remove('visible');
+        }, 5000);
+      }
     }
 
     // Show loading status
@@ -699,6 +800,10 @@
         if (geo) {
           updateGeolocationInfo(geo);
         }
+
+        // Get VPN status
+        const vpnStatus = await window.electronAPI.getVpnStatus();
+        updateVpnInfo(vpnStatus.connected, vpnStatus.location);
       } catch (error) {
         console.error('Failed to initialize:', error);
         currentUrl = 'https://www.youtube.com';

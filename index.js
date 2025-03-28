@@ -1,6 +1,7 @@
 const { app, BrowserWindow, ipcMain, session, Menu } = require("electron");
 const path = require("path");
 const fs = require("fs");
+const { spawn, exec } = require("child_process");
 
 let mainWindow;
 let settingsWindow;
@@ -8,6 +9,11 @@ const isDev = !app.isPackaged;
 
 // Config path for saving settings
 const configPath = path.join(app.getPath("userData"), "config.json");
+
+// VPN Process Management
+let activeVpnProcess = null;
+let vpnConnected = false;
+let currentVpnConfig = null;
 
 // Default settings
 const defaultSettings = {
@@ -21,6 +27,8 @@ Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko)
   geolocationList: "40.712800,-74.006000,100,USA,New York",
   windowsPerSession: 1,
   intervalBetweenSessions: 30,
+  vpnEnabled: false,
+  mullvadFolderPath: "",
 };
 
 // Current user agent index
@@ -34,6 +42,10 @@ let geolocations = [];
 // Current backlink site index
 let currentBacklinkIndex = 0;
 let backlinkSites = [];
+
+// Available VPN configurations
+let vpnConfigurations = [];
+let currentVpnIndex = 0;
 
 // Session management
 let sessionWindows = [];
@@ -86,9 +98,381 @@ function saveSettings(settings) {
         .filter((site) => site.trim().length > 0);
       currentBacklinkIndex = 0;
     }
+
+    // Update VPN settings
+    if (settings.mullvadFolderPath && settings.mullvadFolderPath !== "") {
+      loadVpnConfigurations(settings.mullvadFolderPath);
+    }
   } catch (e) {
     console.error("Error saving settings:", e);
   }
+}
+
+// Load VPN configurations from Mullvad folder
+function loadVpnConfigurations(folderPath) {
+  try {
+    console.log(`Loading VPN configurations from: ${folderPath}`);
+    if (!fs.existsSync(folderPath)) {
+      console.error(`VPN folder does not exist: ${folderPath}`);
+      return;
+    }
+
+    // Find all .tblk directories
+    const tblkFolders = fs
+      .readdirSync(folderPath)
+      .filter(
+        (file) =>
+          file.endsWith(".tblk") &&
+          fs.statSync(path.join(folderPath, file)).isDirectory()
+      );
+
+    vpnConfigurations = [];
+
+    // For each .tblk folder, find configuration files
+    for (const tblkFolder of tblkFolders) {
+      const tblkPath = path.join(folderPath, tblkFolder);
+      const files = fs.readdirSync(tblkPath);
+
+      // Find .conf files (OpenVPN configuration files)
+      const confFiles = files.filter((file) => file.endsWith(".conf"));
+
+      for (const confFile of confFiles) {
+        const configPath = path.join(tblkPath, confFile);
+        const content = fs.readFileSync(configPath, "utf8");
+
+        // Extract location from filename or content
+        let location = "";
+        if (confFile.includes("_")) {
+          // Extract from filename like mullvad_au_adl.conf
+          const parts = confFile.replace(".conf", "").split("_");
+          if (parts.length >= 3) {
+            location = `${parts[1]}-${parts[2]}`.toUpperCase(); // Format as AU-ADL
+          }
+        } else {
+          // Try to extract from content by finding remote lines
+          const remoteLines = content
+            .split("\n")
+            .filter((line) => line.startsWith("remote ") && line.includes("#"));
+
+          if (remoteLines.length > 0) {
+            const commentPart = remoteLines[0].split("#")[1].trim();
+            location = commentPart;
+          }
+        }
+
+        if (!location) location = confFile.replace(".conf", "");
+
+        vpnConfigurations.push({
+          name: location,
+          path: configPath,
+          tblkPath: tblkPath,
+        });
+      }
+    }
+
+    console.log(`Found ${vpnConfigurations.length} VPN configurations`);
+    currentVpnIndex = 0;
+  } catch (error) {
+    console.error("Error loading VPN configurations:", error);
+    vpnConfigurations = [];
+  }
+}
+
+// Get next VPN configuration in rotation
+function getNextVpnConfiguration() {
+  if (vpnConfigurations.length === 0) {
+    console.log("No VPN configurations available");
+    return null;
+  }
+
+  const config = vpnConfigurations[currentVpnIndex];
+  currentVpnIndex = (currentVpnIndex + 1) % vpnConfigurations.length;
+  return config;
+}
+
+// Connect to VPN using the specified configuration
+async function connectToVpn(vpnConfig) {
+  if (!vpnConfig) {
+    console.error("No VPN configuration provided");
+    return false;
+  }
+
+  // Disconnect any existing VPN connection
+  await disconnectVpn();
+
+  try {
+    console.log(`Connecting to VPN: ${vpnConfig.name}`);
+
+    // For macOS, we need to use a different approach because OpenVPN GUI is more reliable
+    // than directly invoking OpenVPN binary
+    if (process.platform === "darwin") {
+      // Check if the file exists
+      if (!fs.existsSync(vpnConfig.path)) {
+        console.error(`VPN configuration file not found: ${vpnConfig.path}`);
+        return false;
+      }
+
+      // Check if we're running with sudo, if not, warn the user
+      const uid = process.getuid ? process.getuid() : -1;
+      if (uid !== 0) {
+        console.warn(
+          "Warning: VPN connection may require sudo privileges. Consider running the app with sudo."
+        );
+      }
+
+      // For macOS, attempt to use the open command to utilize the Tunnelblick app if installed
+      try {
+        // First check if Tunnelblick is installed
+        fs.accessSync("/Applications/Tunnelblick.app", fs.constants.F_OK);
+
+        // Use the open command to open the .tblk file with Tunnelblick
+        const vpnProcess = spawn(
+          "open",
+          ["-a", "Tunnelblick", vpnConfig.tblkPath],
+          {
+            detached: true,
+          }
+        );
+
+        activeVpnProcess = vpnProcess;
+        currentVpnConfig = vpnConfig;
+
+        // Set status and notify
+        vpnConnected = true; // Assume successfully sent to Tunnelblick
+
+        if (mainWindow) {
+          mainWindow.webContents.send("vpn-status-changed", {
+            connected: true,
+            location: vpnConfig.name,
+          });
+        }
+
+        return true;
+      } catch (e) {
+        console.error("Tunnelblick not found, falling back to OpenVPN CLI:", e);
+
+        // Fallback to OpenVPN CLI
+        const openvpnPath = "/usr/local/bin/openvpn";
+
+        if (!fs.existsSync(openvpnPath)) {
+          console.error(
+            "OpenVPN not found. Please install it with Homebrew: brew install openvpn"
+          );
+          return false;
+        }
+
+        // Run OpenVPN in the background
+        const vpnProcess = spawn(
+          "sudo",
+          [openvpnPath, "--config", vpnConfig.path],
+          {
+            detached: true,
+            stdio: "pipe",
+          }
+        );
+
+        activeVpnProcess = vpnProcess;
+        currentVpnConfig = vpnConfig;
+
+        // Set connected status after a delay since we can't easily parse OpenVPN output
+        setTimeout(() => {
+          vpnConnected = true;
+          console.log(
+            `Assumed connected to VPN: ${vpnConfig.name} (delayed status)`
+          );
+
+          // Notify the main window
+          if (mainWindow) {
+            mainWindow.webContents.send("vpn-status-changed", {
+              connected: true,
+              location: vpnConfig.name,
+            });
+          }
+        }, 3000);
+
+        return true;
+      }
+    } else {
+      // For other platforms (Windows/Linux), we can try a direct approach with OpenVPN
+      const vpnProcess = spawn("openvpn", ["--config", vpnConfig.path], {
+        detached: true,
+        stdio: "pipe",
+      });
+
+      activeVpnProcess = vpnProcess;
+      currentVpnConfig = vpnConfig;
+
+      // Listen for process events
+      vpnProcess.stdout.on("data", (data) => {
+        const output = data.toString();
+        console.log(`VPN stdout: ${output}`);
+
+        // Check for successful connection
+        if (output.includes("Initialization Sequence Completed")) {
+          vpnConnected = true;
+          console.log(`Connected to VPN: ${vpnConfig.name}`);
+
+          // Notify the main window
+          if (mainWindow) {
+            mainWindow.webContents.send("vpn-status-changed", {
+              connected: true,
+              location: vpnConfig.name,
+            });
+          }
+        }
+      });
+
+      vpnProcess.stderr.on("data", (data) => {
+        console.error(`VPN stderr: ${data.toString()}`);
+      });
+
+      return true;
+    }
+  } catch (error) {
+    console.error("Error connecting to VPN:", error);
+    return false;
+  }
+}
+
+// Disconnect from VPN
+async function disconnectVpn() {
+  if (!activeVpnProcess && !vpnConnected) {
+    console.log("No active VPN connection to disconnect");
+    return true;
+  }
+
+  try {
+    console.log("Disconnecting from VPN");
+
+    if (process.platform === "darwin") {
+      // For macOS, try to disconnect through Tunnelblick if it's being used
+      try {
+        if (fs.existsSync("/Applications/Tunnelblick.app")) {
+          // First, get list of connected configurations
+          exec(
+            "osascript -e 'tell application \"Tunnelblick\" to get name of configurations where state is connected'",
+            async (error, stdout, stderr) => {
+              if (error) {
+                console.error("Error getting Tunnelblick connections:", error);
+                // Fall back to force kill method
+                await forceKillVpn();
+                return;
+              }
+
+              const connectedConfigs = stdout.trim().split(", ");
+
+              // Find our configuration
+              if (currentVpnConfig) {
+                const configName = path.basename(
+                  currentVpnConfig.tblkPath,
+                  ".tblk"
+                );
+
+                if (connectedConfigs.includes(configName)) {
+                  // Disconnect the specific configuration
+                  exec(
+                    `osascript -e 'tell application "Tunnelblick" to disconnect "${configName}"'`,
+                    (error, stdout, stderr) => {
+                      if (error) {
+                        console.error(
+                          "Error disconnecting from Tunnelblick:",
+                          error
+                        );
+                      } else {
+                        console.log(`Disconnected from VPN: ${configName}`);
+                      }
+                    }
+                  );
+                }
+              } else {
+                // Disconnect all configurations
+                exec(
+                  "osascript -e 'tell application \"Tunnelblick\" to disconnect all'",
+                  (error, stdout, stderr) => {
+                    if (error) {
+                      console.error(
+                        "Error disconnecting all from Tunnelblick:",
+                        error
+                      );
+                    } else {
+                      console.log("Disconnected all VPN connections");
+                    }
+                  }
+                );
+              }
+            }
+          );
+        } else {
+          // Tunnelblick not found, fall back to force kill
+          await forceKillVpn();
+        }
+      } catch (e) {
+        console.error("Error with Tunnelblick disconnect:", e);
+        await forceKillVpn();
+      }
+    } else {
+      // For other platforms, kill the OpenVPN process
+      if (activeVpnProcess) {
+        activeVpnProcess.kill("SIGTERM");
+      }
+
+      // Force kill any remaining processes
+      await forceKillVpn();
+    }
+
+    // Reset state
+    vpnConnected = false;
+    activeVpnProcess = null;
+    currentVpnConfig = null;
+
+    // Notify the main window
+    if (mainWindow) {
+      mainWindow.webContents.send("vpn-status-changed", {
+        connected: false,
+        location: "",
+      });
+    }
+
+    return true;
+  } catch (error) {
+    console.error("Error disconnecting from VPN:", error);
+    return false;
+  }
+}
+
+// Helper function to force kill OpenVPN processes
+async function forceKillVpn() {
+  return new Promise((resolve) => {
+    if (process.platform === "darwin" || process.platform === "linux") {
+      exec("pkill -f openvpn", (error) => {
+        if (error && error.code !== 1) {
+          // Error code 1 just means no processes were found
+          console.error("Error killing openvpn process:", error);
+        }
+        resolve();
+      });
+    } else {
+      // Windows
+      exec("taskkill /F /IM openvpn.exe", (error) => {
+        if (error && error.code !== 128) {
+          // Error code 128 means no processes were found
+          console.error("Error killing openvpn process:", error);
+        }
+        resolve();
+      });
+    }
+  });
+}
+
+// Rotate VPN connection
+async function rotateVpn() {
+  const config = getNextVpnConfiguration();
+  if (!config) {
+    console.error("No VPN configurations available to rotate to");
+    return false;
+  }
+
+  return await connectToVpn(config);
 }
 
 // Parse geolocation string to object
@@ -318,14 +702,26 @@ function startVirtualizationSession() {
   const windowsPerSession = settings.windowsPerSession || 1;
   const intervalBetweenSessions = settings.intervalBetweenSessions || 30;
   const url = settings.youtubeChannelUrl;
+  const vpnEnabled = settings.vpnEnabled || false;
 
   // Clear any existing session
   stopVirtualizationSession();
 
-  // Create new windows for this session
-  for (let i = 0; i < windowsPerSession; i++) {
-    const sessionWindow = createSessionWindow(url);
-    sessionWindows.push(sessionWindow);
+  // Connect to VPN if enabled
+  if (vpnEnabled && vpnConfigurations.length > 0) {
+    rotateVpn().then((success) => {
+      if (success) {
+        console.log("Connected to VPN for virtualization session");
+      } else {
+        console.error("Failed to connect to VPN for virtualization session");
+      }
+
+      // Continue with window creation regardless of VPN connection status
+      createSessionWindows(windowsPerSession, url);
+    });
+  } else {
+    // Create windows without VPN
+    createSessionWindows(windowsPerSession, url);
   }
 
   // Set timer for next session if interval is greater than 0
@@ -336,6 +732,14 @@ function startVirtualizationSession() {
     sessionTimer = setTimeout(() => {
       startVirtualizationSession();
     }, intervalBetweenSessions * 1000);
+  }
+}
+
+// Helper function to create session windows
+function createSessionWindows(count, url) {
+  for (let i = 0; i < count; i++) {
+    const sessionWindow = createSessionWindow(url);
+    sessionWindows.push(sessionWindow);
   }
 }
 
@@ -355,6 +759,19 @@ function stopVirtualizationSession() {
   }
 
   sessionWindows = [];
+
+  // Disconnect from VPN if connected
+  if (vpnConnected) {
+    disconnectVpn().then((success) => {
+      if (success) {
+        console.log("Disconnected from VPN after stopping virtualization");
+      } else {
+        console.error(
+          "Failed to disconnect from VPN after stopping virtualization"
+        );
+      }
+    });
+  }
 }
 
 function createMainWindow() {
@@ -381,6 +798,11 @@ function createMainWindow() {
   backlinkSites = (settings.backlinksList || "")
     .split("\n")
     .filter((site) => site.trim().length > 0);
+
+  // Load VPN configurations if path is set
+  if (settings.mullvadFolderPath && settings.mullvadFolderPath !== "") {
+    loadVpnConfigurations(settings.mullvadFolderPath);
+  }
 
   // Configure session for webviews
   const ses = session.defaultSession;
@@ -542,6 +964,20 @@ function createMainWindow() {
             }
           },
         },
+        {
+          label: "Rotate VPN",
+          accelerator: "CmdOrCtrl+V",
+          click: () => {
+            rotateVpn().then((success) => {
+              if (success && mainWindow) {
+                mainWindow.webContents.send("vpn-status-changed", {
+                  connected: vpnConnected,
+                  location: currentVpnConfig ? currentVpnConfig.name : "",
+                });
+              }
+            });
+          },
+        },
         { type: "separator" },
         {
           label: "Start Virtualization",
@@ -680,4 +1116,35 @@ ipcMain.handle("start-virtualization", () => {
 ipcMain.handle("stop-virtualization", () => {
   stopVirtualizationSession();
   return true;
+});
+
+// IPC handlers for VPN
+ipcMain.handle("get-vpn-configurations", () => {
+  return vpnConfigurations.map((config) => ({
+    name: config.name,
+    path: config.path,
+  }));
+});
+
+ipcMain.handle("get-vpn-status", () => {
+  return {
+    connected: vpnConnected,
+    location: currentVpnConfig ? currentVpnConfig.name : "",
+    configurations: vpnConfigurations.length,
+  };
+});
+
+ipcMain.handle("connect-vpn", async (event, configIndex) => {
+  if (configIndex >= 0 && configIndex < vpnConfigurations.length) {
+    return await connectToVpn(vpnConfigurations[configIndex]);
+  }
+  return false;
+});
+
+ipcMain.handle("disconnect-vpn", async () => {
+  return await disconnectVpn();
+});
+
+ipcMain.handle("rotate-vpn", async () => {
+  return await rotateVpn();
 });

@@ -119,6 +119,42 @@
       font-size: 14px;
       color: #666;
     }
+    .secondary-btn {
+      background: #757575;
+      color: white;
+      border: none;
+      padding: 8px 12px;
+      border-radius: 4px;
+      cursor: pointer;
+      margin-top: 10px;
+      font-size: 14px;
+      transition: background 0.3s;
+    }
+    .secondary-btn:hover {
+      background: #616161;
+    }
+    .status-message {
+      margin-top: 10px;
+      padding: 8px 12px;
+      border-radius: 4px;
+      font-size: 14px;
+      display: none;
+    }
+    .status-message.pending {
+      display: block;
+      background: #FFF9C4;
+      color: #F57F17;
+    }
+    .status-message.success {
+      display: block;
+      background: #E8F5E9;
+      color: #2E7D32;
+    }
+    .status-message.error {
+      display: block;
+      background: #FFEBEE;
+      color: #C62828;
+    }
   </style>
 </head>
 <body>
@@ -177,6 +213,19 @@
         <label for="vpnList">VPN List</label>
         <textarea id="vpnList" name="vpnList" placeholder="Enter one VPN per line"></textarea>
         <p class="info">List of VPN details for reference</p>
+
+        <div class="input-group">
+          <label for="vpnEnabled">Enable VPN for virtualization:</label>
+          <input type="checkbox" id="vpnEnabled" name="vpnEnabled">
+        </div>
+        <p class="info">When checked, will use Mullvad VPN connections during virtualization sessions</p>
+
+        <label for="mullvadFolderPath">Mullvad VPN Configuration Folder</label>
+        <input type="text" id="mullvadFolderPath" name="mullvadFolderPath" placeholder="/path/to/mullvad">
+        <p class="info">Path to the folder containing Mullvad .tblk configurations</p>
+
+        <button type="button" id="testVpnBtn" class="secondary-btn">Test VPN Connection</button>
+        <div id="vpnStatus" class="status-message"></div>
       </div>
 
       <div class="section">
@@ -204,6 +253,8 @@
         document.getElementById('userAgentList').value = settings.userAgentList || '';
         document.getElementById('geolocationList').value = settings.geolocationList || '';
         document.getElementById('backlinksList').value = settings.backlinksList || '';
+        document.getElementById('mullvadFolderPath').value = settings.mullvadFolderPath || '';
+        document.getElementById('vpnEnabled').checked = settings.vpnEnabled || false;
 
         // Load virtualization settings with defaults if not present
         document.getElementById('windowsPerSession').value = settings.windowsPerSession || 1;
@@ -559,7 +610,9 @@
           userAgentList: document.getElementById('userAgentList').value,
           geolocationList: document.getElementById('geolocationList').value,
           windowsPerSession: windowsPerSession,
-          intervalBetweenSessions: intervalBetweenSessions
+          intervalBetweenSessions: intervalBetweenSessions,
+          mullvadFolderPath: document.getElementById('mullvadFolderPath').value,
+          vpnEnabled: document.getElementById('vpnEnabled').checked
         };
         await window.electronAPI.saveSettings(settings);
         window.close();
@@ -571,6 +624,63 @@
     // Cancel button
     document.getElementById('cancelBtn').addEventListener('click', () => {
       window.close();
+    });
+
+    // Test VPN Connection
+    document.getElementById('testVpnBtn').addEventListener('click', async () => {
+      const vpnStatus = document.getElementById('vpnStatus');
+      vpnStatus.textContent = 'Testing VPN connection...';
+      vpnStatus.className = 'status-message pending';
+
+      try {
+        // First check if we have configurations loaded
+        const status = await window.electronAPI.getVpnStatus();
+
+        if (status.configurations === 0) {
+          const folderPath = document.getElementById('mullvadFolderPath').value;
+          if (!folderPath) {
+            vpnStatus.textContent = 'Please enter a Mullvad VPN folder path first.';
+            vpnStatus.className = 'status-message error';
+            return;
+          }
+
+          // Save settings to load the configurations
+          const settings = {
+            mullvadFolderPath: folderPath,
+            vpnEnabled: document.getElementById('vpnEnabled').checked
+          };
+          await window.electronAPI.saveSettings(settings);
+
+          // Check again after saving
+          const newStatus = await window.electronAPI.getVpnStatus();
+          if (newStatus.configurations === 0) {
+            vpnStatus.textContent = 'No VPN configurations found in the specified folder.';
+            vpnStatus.className = 'status-message error';
+            return;
+          }
+        }
+
+        // Try to connect to VPN
+        const success = await window.electronAPI.rotateVpn();
+
+        if (success) {
+          vpnStatus.textContent = 'VPN connection initiated. Check main window for status.';
+          vpnStatus.className = 'status-message success';
+
+          // Schedule a disconnect after 10 seconds
+          setTimeout(async () => {
+            await window.electronAPI.disconnectVpn();
+            vpnStatus.textContent = 'VPN test completed and disconnected.';
+          }, 10000);
+        } else {
+          vpnStatus.textContent = 'Failed to connect to VPN. Check console for errors.';
+          vpnStatus.className = 'status-message error';
+        }
+      } catch (error) {
+        console.error('VPN test error:', error);
+        vpnStatus.textContent = `VPN test error: ${error.message || 'Unknown error'}`;
+        vpnStatus.className = 'status-message error';
+      }
     });
   </script>
 </body>
