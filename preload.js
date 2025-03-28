@@ -19,6 +19,10 @@ contextBridge.exposeInMainWorld("electronAPI", {
   getCurrentGeolocation: () => ipcRenderer.invoke("get-current-geolocation"),
   rotateGeolocation: () => ipcRenderer.invoke("rotate-geolocation"),
 
+  // Session logs
+  getSessionLogs: () => ipcRenderer.invoke("get-session-logs"),
+  clearSessionLogs: () => ipcRenderer.invoke("clear-session-logs"),
+
   // VPN controls
   getVpnConfigurations: () => ipcRenderer.invoke("get-vpn-configurations"),
   getVpnStatus: () => ipcRenderer.invoke("get-vpn-status"),
@@ -45,4 +49,6 @@ contextBridge.exposeInMainWorld("electronAPI", {
     ipcRenderer.on("geolocation-changed", (_, geo) => callback(geo)),
   onVpnStatusChanged: (callback) =>
     ipcRenderer.on("vpn-status-changed", (_, status) => callback(status)),
+  onSessionLog: (callback) =>
+    ipcRenderer.on("session-log", (_, log) => callback(log)),
 });

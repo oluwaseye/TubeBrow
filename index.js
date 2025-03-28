@@ -9,6 +9,20 @@ const {
 const path = require("path");
 const fs = require("fs");
 const { spawn, exec } = require("child_process");
+const puppeteer = require("puppeteer-extra");
+const StealthPlugin = require("puppeteer-extra-plugin-stealth");
+const RecaptchaPlugin = require("puppeteer-extra-plugin-recaptcha");
+const AnonymizeUAPlugin = require("puppeteer-extra-plugin-anonymize-ua");
+
+// Add Puppeteer plugins
+puppeteer.use(StealthPlugin());
+puppeteer.use(AnonymizeUAPlugin());
+puppeteer.use(
+  RecaptchaPlugin({
+    provider: { id: "2captcha", token: "" }, // Add token if available
+    visualFeedback: true,
+  })
+);
 
 let mainWindow;
 let settingsWindow;
@@ -21,6 +35,10 @@ const configPath = path.join(app.getPath("userData"), "config.json");
 let activeVpnProcess = null;
 let vpnConnected = false;
 let currentVpnConfig = null;
+
+// Puppeteer instances
+let puppeteerBrowsers = [];
+let activeSessionLogs = [];
 
 // Default settings
 const defaultSettings = {
@@ -702,38 +720,45 @@ function createSessionWindow(url) {
   return window;
 }
 
-// Start virtualization session with multiple windows
+// Start virtualization session with Puppeteer
 function startVirtualizationSession() {
   const settings = loadSettings();
   const windowsPerSession = settings.windowsPerSession || 1;
   const intervalBetweenSessions = settings.intervalBetweenSessions || 30;
-  const url = settings.youtubeChannelUrl;
   const vpnEnabled = settings.vpnEnabled || false;
 
   // Clear any existing session
   stopVirtualizationSession();
 
+  // Clear logs for new session
+  activeSessionLogs = [];
+  addSessionLog("Starting new virtualization session", "info");
+
   // Connect to VPN if enabled
   if (vpnEnabled && vpnConfigurations.length > 0) {
     rotateVpn().then((success) => {
       if (success) {
-        console.log("Connected to VPN for virtualization session");
+        addSessionLog("Connected to VPN for virtualization session", "success");
       } else {
-        console.error("Failed to connect to VPN for virtualization session");
+        addSessionLog(
+          "Failed to connect to VPN for virtualization session",
+          "error"
+        );
       }
 
-      // Continue with window creation regardless of VPN connection status
-      createSessionWindows(windowsPerSession, url);
+      // Continue with puppeteer sessions creation regardless of VPN connection status
+      createPuppeteerSessions(windowsPerSession);
     });
   } else {
-    // Create windows without VPN
-    createSessionWindows(windowsPerSession, url);
+    // Create sessions without VPN
+    createPuppeteerSessions(windowsPerSession);
   }
 
   // Set timer for next session if interval is greater than 0
   if (intervalBetweenSessions > 0) {
-    console.log(
-      `Next virtualization session in ${intervalBetweenSessions} seconds`
+    addSessionLog(
+      `Next virtualization session in ${intervalBetweenSessions} seconds`,
+      "info"
     );
     sessionTimer = setTimeout(() => {
       startVirtualizationSession();
@@ -741,39 +766,66 @@ function startVirtualizationSession() {
   }
 }
 
-// Helper function to create session windows
-function createSessionWindows(count, url) {
+// Helper function to create multiple Puppeteer sessions
+async function createPuppeteerSessions(count) {
+  addSessionLog(`Creating ${count} Puppeteer session(s)`, "info");
+
   for (let i = 0; i < count; i++) {
-    const sessionWindow = createSessionWindow(url);
-    sessionWindows.push(sessionWindow);
+    try {
+      const sessionResult = await createPuppeteerSession();
+      if (sessionResult) {
+        sessionWindows.push(sessionResult);
+      }
+
+      // Add a small delay between opening windows to look more natural
+      if (i < count - 1) {
+        await new Promise((resolve) =>
+          setTimeout(resolve, getRandomInt(2000, 5000))
+        );
+      }
+    } catch (error) {
+      addSessionLog(
+        `Error creating session ${i + 1}: ${error.message}`,
+        "error"
+      );
+      console.error(`Error creating session ${i + 1}:`, error);
+    }
   }
 }
 
 // Stop virtualization session
-function stopVirtualizationSession() {
+async function stopVirtualizationSession() {
   // Clear timer if exists
   if (sessionTimer) {
     clearTimeout(sessionTimer);
     sessionTimer = null;
   }
 
+  // Close all puppeteer browsers
+  await closePuppeteerBrowsers();
+
   // Close all session windows
   for (const window of sessionWindows) {
-    if (!window.isDestroyed()) {
+    if (window && !window.isDestroyed && !window.isDestroyed()) {
       window.close();
     }
   }
 
   sessionWindows = [];
+  addSessionLog("Stopped all virtualization sessions", "info");
 
   // Disconnect from VPN if connected
   if (vpnConnected) {
     disconnectVpn().then((success) => {
       if (success) {
-        console.log("Disconnected from VPN after stopping virtualization");
+        addSessionLog(
+          "Disconnected from VPN after stopping virtualization",
+          "success"
+        );
       } else {
-        console.error(
-          "Failed to disconnect from VPN after stopping virtualization"
+        addSessionLog(
+          "Failed to disconnect from VPN after stopping virtualization",
+          "error"
         );
       }
     });
@@ -1216,3 +1268,329 @@ ipcMain.handle("clipboard-write-html", (event, html) => {
   clipboard.writeHTML(html);
   return true;
 });
+
+// IPC handlers for session logs
+ipcMain.handle("get-session-logs", () => {
+  return activeSessionLogs;
+});
+
+ipcMain.handle("clear-session-logs", () => {
+  activeSessionLogs = [];
+  return true;
+});
+
+// Log session activity
+function addSessionLog(message, type = "info") {
+  const log = {
+    timestamp: new Date().toISOString(),
+    message,
+    type, // 'info', 'success', 'error', 'warning'
+  };
+
+  activeSessionLogs.push(log);
+
+  // Limit logs to keep memory usage reasonable
+  if (activeSessionLogs.length > 1000) {
+    activeSessionLogs.shift();
+  }
+
+  // Send log to main window
+  if (mainWindow && !mainWindow.isDestroyed()) {
+    mainWindow.webContents.send("session-log", log);
+  }
+}
+
+// Close all puppeteer browsers
+async function closePuppeteerBrowsers() {
+  for (const browser of puppeteerBrowsers) {
+    try {
+      if (browser && browser.isConnected()) {
+        await browser.close();
+      }
+    } catch (error) {
+      console.error("Error closing browser:", error);
+    }
+  }
+  puppeteerBrowsers = [];
+}
+
+// Create a Puppeteer session with random settings
+async function createPuppeteerSession() {
+  try {
+    const settings = loadSettings();
+
+    // Get random values from settings
+    const userAgent = getNextUserAgent();
+    const geolocation = getNextGeolocation();
+    const videoUrl = getRandomVideoUrl();
+
+    // Log session start
+    addSessionLog(
+      `Starting new Puppeteer session with User Agent: ${userAgent.substring(
+        0,
+        30
+      )}...`,
+      "info"
+    );
+
+    // Configure puppeteer launch options
+    const launchOptions = {
+      headless: false, // Show browser UI
+      defaultViewport: null, // Use default viewport
+      args: [
+        "--no-sandbox",
+        "--disable-setuid-sandbox",
+        "--disable-infobars",
+        "--window-size=1366,768",
+        "--disable-blink-features=AutomationControlled",
+        `--user-agent=${userAgent}`,
+      ],
+      ignoreDefaultArgs: ["--enable-automation"],
+    };
+
+    // Launch the browser
+    const browser = await puppeteer.launch(launchOptions);
+    puppeteerBrowsers.push(browser);
+
+    // Create a new page
+    const page = await browser.newPage();
+
+    // Additional anti-bot measures
+    await setupAntiDetection(page, userAgent, geolocation);
+
+    // If there's a videoUrl, navigate to it
+    if (videoUrl) {
+      addSessionLog(`Navigating to: ${videoUrl}`, "info");
+      await page.goto(videoUrl, { waitUntil: "networkidle2", timeout: 60000 });
+
+      // Interact with the page to simulate human behavior
+      await simulateHumanBehavior(page);
+
+      // Success message
+      addSessionLog(`Successfully loaded ${videoUrl}`, "success");
+    } else {
+      // If no video URL, just go to YouTube
+      addSessionLog(
+        `No video URL available, going to YouTube homepage`,
+        "warning"
+      );
+      await page.goto("https://www.youtube.com", {
+        waitUntil: "networkidle2",
+        timeout: 60000,
+      });
+
+      // Interact with the homepage
+      await simulateHumanBehavior(page);
+    }
+
+    // Clean-up when the page is closed
+    page.on("close", () => {
+      addSessionLog("Page closed", "info");
+    });
+
+    // Listen for console logs
+    page.on("console", (msg) => {
+      addSessionLog(`Browser Console: ${msg.text()}`, "info");
+    });
+
+    // Listen for errors
+    page.on("error", (err) => {
+      addSessionLog(`Browser Error: ${err.message}`, "error");
+    });
+
+    return { browser, page };
+  } catch (error) {
+    addSessionLog(
+      `Error creating Puppeteer session: ${error.message}`,
+      "error"
+    );
+    console.error("Error in createPuppeteerSession:", error);
+    return null;
+  }
+}
+
+// Setup additional anti-detection measures
+async function setupAntiDetection(page, userAgent, geolocation) {
+  // Override permissions
+  const cdpSession = await page.target().createCDPSession();
+  await cdpSession.send("Emulation.setGeolocationOverride", {
+    latitude: geolocation.latitude,
+    longitude: geolocation.longitude,
+    accuracy: geolocation.accuracy,
+  });
+
+  // Set user-agent
+  await page.setUserAgent(userAgent);
+
+  // Override navigator properties
+  await page.evaluateOnNewDocument(() => {
+    // WebDriver
+    Object.defineProperty(navigator, "webdriver", {
+      get: () => false,
+    });
+
+    // Languages
+    Object.defineProperty(navigator, "languages", {
+      get: () => ["en-US", "en"],
+    });
+
+    // Plugins (mimic having plugins)
+    Object.defineProperty(navigator, "plugins", {
+      get: () => {
+        return [
+          {
+            0: {
+              type: "application/pdf",
+              suffixes: "pdf",
+              description: "Portable Document Format",
+              enabledPlugin: Plugin,
+            },
+            name: "PDF Viewer",
+            description: "Portable Document Format",
+            filename: "internal-pdf-viewer",
+            length: 1,
+          },
+        ];
+      },
+    });
+
+    // Web GL vendor
+    const getParameter = WebGLRenderingContext.prototype.getParameter;
+    WebGLRenderingContext.prototype.getParameter = function (parameter) {
+      if (parameter === 37445) {
+        return "Intel Inc.";
+      }
+      if (parameter === 37446) {
+        return "Intel Iris OpenGL Engine";
+      }
+      return getParameter.apply(this, [parameter]);
+    };
+
+    // Hardware concurrency (CPU cores)
+    Object.defineProperty(navigator, "hardwareConcurrency", {
+      get: () => 8,
+    });
+
+    // Device memory
+    Object.defineProperty(navigator, "deviceMemory", {
+      get: () => 8,
+    });
+
+    // Platform
+    Object.defineProperty(navigator, "platform", {
+      get: () => "MacIntel",
+    });
+  });
+
+  // Set permissions
+  const permissions = ["geolocation", "notifications"];
+  for (const permission of permissions) {
+    await cdpSession.send("Browser.grantPermissions", {
+      origin: "https://www.youtube.com",
+      permissions: [permission],
+    });
+  }
+
+  // Add a viewport with a consistent device pixel ratio
+  await page.setViewport({
+    width: 1366,
+    height: 768,
+    deviceScaleFactor: 1,
+    hasTouch: false,
+    isLandscape: true,
+    isMobile: false,
+  });
+}
+
+// Simulate human behavior
+async function simulateHumanBehavior(page) {
+  try {
+    // Wait for page to fully load
+    await page.waitForTimeout(getRandomInt(1000, 3000));
+
+    // Scroll down slowly, like a human might
+    for (let i = 0; i < 5; i++) {
+      await page.evaluate(() => {
+        window.scrollBy(0, Math.floor(Math.random() * 100) + 100);
+      });
+      // Random pause between scrolls
+      await page.waitForTimeout(getRandomInt(500, 2000));
+    }
+
+    // If it's a YouTube video page, interact with the player
+    const isVideoPage = await page.evaluate(() => {
+      return document.querySelector("video") !== null;
+    });
+
+    if (isVideoPage) {
+      // Click on video player to initiate playback
+      const videoElement = await page.$("video");
+      if (videoElement) {
+        await videoElement.click();
+        addSessionLog("Clicked on video to initiate playback", "info");
+
+        // Wait for a bit to simulate watching
+        await page.waitForTimeout(getRandomInt(5000, 15000));
+
+        // Adjust volume randomly
+        await page.evaluate(() => {
+          const video = document.querySelector("video");
+          if (video) {
+            video.volume = Math.random();
+          }
+        });
+
+        // Maybe like the video (20% chance)
+        if (Math.random() < 0.2) {
+          const likeButton = await page.$('button[aria-label*="like" i]');
+          if (likeButton) {
+            await likeButton.click();
+            addSessionLog("Liked the video", "info");
+            await page.waitForTimeout(getRandomInt(1000, 3000));
+          }
+        }
+      }
+    }
+
+    // Random chance to click on a suggested video
+    if (Math.random() < 0.3) {
+      // Find video recommendation links
+      const recommendedVideos = await page.$$("a#thumbnail");
+      if (recommendedVideos.length > 0) {
+        // Click a random recommended video
+        const randomIndex = Math.floor(
+          Math.random() * recommendedVideos.length
+        );
+        await recommendedVideos[randomIndex].click();
+        addSessionLog("Clicked on a recommended video", "info");
+        await page.waitForTimeout(getRandomInt(3000, 7000));
+      }
+    }
+  } catch (error) {
+    addSessionLog(
+      `Error during human behavior simulation: ${error.message}`,
+      "error"
+    );
+    console.error("Error in simulateHumanBehavior:", error);
+  }
+}
+
+// Get random integer between min and max (inclusive)
+function getRandomInt(min, max) {
+  return Math.floor(Math.random() * (max - min + 1)) + min;
+}
+
+// Get a random YouTube video URL from the settings
+function getRandomVideoUrl() {
+  const settings = loadSettings();
+  const videosList = settings.youtubeVideosList || "";
+  const videos = videosList.split("\n").filter((url) => url.trim().length > 0);
+
+  if (videos.length === 0) {
+    return null;
+  }
+
+  // Get a random video URL
+  const randomIndex = Math.floor(Math.random() * videos.length);
+  return videos[randomIndex];
+}

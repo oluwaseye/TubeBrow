@@ -378,6 +378,134 @@
     #vpn-info.disconnected {
       background: rgba(244, 67, 54, 0.8);
     }
+    #logs-container {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background: #1e1e1e;
+      font-family: 'Courier New', monospace;
+      color: #f0f0f0;
+      padding: 10px;
+      overflow: auto;
+      z-index: 998;
+      display: flex;
+      flex-direction: column;
+    }
+    #logs-toolbar {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      background: #2d2d2d;
+      padding: 10px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      z-index: 999;
+      box-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
+    }
+    #logs-content {
+      margin-top: 50px;
+      padding-bottom: 20px;
+      overflow-y: auto;
+      flex: 1;
+    }
+    .log-entry {
+      border-bottom: 1px solid #333;
+      padding: 5px 10px;
+      font-size: 13px;
+      line-height: 1.4;
+      display: flex;
+    }
+    .log-timestamp {
+      color: #8e8e8e;
+      margin-right: 10px;
+      white-space: nowrap;
+    }
+    .log-message {
+      flex: 1;
+      white-space: pre-wrap;
+      word-break: break-word;
+    }
+    .log-entry.info {
+      color: #b2dfdb;
+    }
+    .log-entry.success {
+      color: #a5d6a7;
+    }
+    .log-entry.warning {
+      color: #ffe082;
+    }
+    .log-entry.error {
+      color: #ef9a9a;
+    }
+    .toolbar-btn {
+      background: #4285f4;
+      color: white;
+      border: none;
+      padding: 6px 12px;
+      border-radius: 4px;
+      cursor: pointer;
+      margin-right: 8px;
+      font-size: 13px;
+      transition: background 0.2s;
+    }
+    .toolbar-btn:hover {
+      background: #2a75f3;
+    }
+    .toolbar-btn.danger {
+      background: #ea4335;
+    }
+    .toolbar-btn.danger:hover {
+      background: #d73c2d;
+    }
+    .toolbar-title {
+      font-size: 16px;
+      font-weight: bold;
+      color: #fff;
+    }
+    .toolbar-spacer {
+      flex: 1;
+    }
+    #status-bar {
+      position: fixed;
+      bottom: 0;
+      left: 0;
+      width: 100%;
+      background: #2d2d2d;
+      padding: 5px 10px;
+      display: flex;
+      color: #ccc;
+      font-size: 12px;
+      border-top: 1px solid #3d3d3d;
+      z-index: 999;
+    }
+    .status-item {
+      margin-right: 15px;
+      display: flex;
+      align-items: center;
+    }
+    .status-label {
+      margin-right: 5px;
+      color: #999;
+    }
+    .status-value {
+      color: #f0f0f0;
+    }
+    .status-value.running {
+      color: #4CAF50;
+    }
+    .status-value.stopped {
+      color: #F44336;
+    }
+    .status-value.connected {
+      color: #4CAF50;
+    }
+    .status-value.disconnected {
+      color: #F44336;
+    }
   </style>
 </head>
 <body>
@@ -395,6 +523,38 @@
     <h2>Failed to load content</h2>
     <p id="error-message">There was a problem loading the page.</p>
     <button id="retry-btn">Retry</button>
+  </div>
+
+  <div id="logs-container">
+    <div id="logs-toolbar">
+      <div class="toolbar-title">TubeBrow Session Logs</div>
+      <div class="toolbar-spacer"></div>
+      <button id="start-session-btn" class="toolbar-btn">Start Session</button>
+      <button id="stop-session-btn" class="toolbar-btn danger">Stop Session</button>
+      <button id="settings-toolbar-btn" class="toolbar-btn">Settings</button>
+      <button id="clear-logs-btn" class="toolbar-btn">Clear Logs</button>
+    </div>
+    <div id="logs-content">
+      <!-- Logs will be displayed here -->
+    </div>
+    <div id="status-bar">
+      <div class="status-item">
+        <span class="status-label">Virtualization:</span>
+        <span id="virtualization-status-value" class="status-value stopped">Stopped</span>
+      </div>
+      <div class="status-item">
+        <span class="status-label">VPN:</span>
+        <span id="vpn-status-value" class="status-value disconnected">Disconnected</span>
+      </div>
+      <div class="status-item">
+        <span class="status-label">Location:</span>
+        <span id="geo-status-value" class="status-value">Unknown</span>
+      </div>
+      <div class="status-item">
+        <span class="status-label">Sessions:</span>
+        <span id="session-count-value" class="status-value">0</span>
+      </div>
+    </div>
   </div>
 
   <div id="settings-container">
@@ -763,7 +923,155 @@
       updateGeolocationInfo(geo);
     });
 
-    // Get initial URL and videos when page loads
+    // Get DOM elements for logging interface
+    const logsContainer = document.getElementById('logs-container');
+    const logsContent = document.getElementById('logs-content');
+    const clearLogsBtn = document.getElementById('clear-logs-btn');
+    const startSessionBtn = document.getElementById('start-session-btn');
+    const stopSessionBtn = document.getElementById('stop-session-btn');
+    const settingsToolbarBtn = document.getElementById('settings-toolbar-btn');
+
+    // Status bar elements
+    const virtualizationStatusValue = document.getElementById('virtualization-status-value');
+    const vpnStatusValue = document.getElementById('vpn-status-value');
+    const geoStatusValue = document.getElementById('geo-status-value');
+    const sessionCountValue = document.getElementById('session-count-value');
+
+    // Function to add a log entry to the UI
+    function addLogEntry(log) {
+      // Create log entry elements
+      const logEntry = document.createElement('div');
+      logEntry.className = `log-entry ${log.type}`;
+
+      const timestamp = document.createElement('div');
+      timestamp.className = 'log-timestamp';
+      timestamp.textContent = new Date(log.timestamp).toLocaleTimeString();
+
+      const message = document.createElement('div');
+      message.className = 'log-message';
+      message.textContent = log.message;
+
+      // Add elements to the log entry
+      logEntry.appendChild(timestamp);
+      logEntry.appendChild(message);
+
+      // Add to logs container
+      logsContent.appendChild(logEntry);
+
+      // Scroll to bottom
+      logsContent.scrollTop = logsContent.scrollHeight;
+    }
+
+    // Clear logs
+    clearLogsBtn.addEventListener('click', async () => {
+      try {
+        await window.electronAPI.clearSessionLogs();
+        logsContent.innerHTML = '';
+      } catch (error) {
+        console.error('Failed to clear logs:', error);
+      }
+    });
+
+    // Start virtualization session
+    startSessionBtn.addEventListener('click', async () => {
+      try {
+        showLoading();
+        await window.electronAPI.startVirtualization();
+        updateVirtualizationStatus(true);
+      } catch (error) {
+        console.error('Failed to start virtualization:', error);
+      }
+    });
+
+    // Stop virtualization session
+    stopSessionBtn.addEventListener('click', async () => {
+      try {
+        await window.electronAPI.stopVirtualization();
+        updateVirtualizationStatus(false);
+      } catch (error) {
+        console.error('Failed to stop virtualization:', error);
+      }
+    });
+
+    // Open settings
+    settingsToolbarBtn.addEventListener('click', async () => {
+      try {
+        await window.electronAPI.openSettings();
+      } catch (error) {
+        console.error('Failed to open settings:', error);
+      }
+    });
+
+    // Listen for session logs
+    window.electronAPI.onSessionLog((log) => {
+      addLogEntry(log);
+
+      // Update session count if applicable
+      if (log.message.includes('Creating') && log.message.includes('Puppeteer session')) {
+        const match = log.message.match(/Creating (\d+) Puppeteer session/);
+        if (match && match[1]) {
+          sessionCountValue.textContent = match[1];
+        }
+      }
+    });
+
+    // Load existing logs on startup
+    async function loadExistingLogs() {
+      try {
+        const logs = await window.electronAPI.getSessionLogs();
+        for (const log of logs) {
+          addLogEntry(log);
+        }
+      } catch (error) {
+        console.error('Failed to load existing logs:', error);
+      }
+    }
+
+    // Update status bar based on current state
+    function updateStatusBar() {
+      if (isVirtualizationActive) {
+        virtualizationStatusValue.textContent = 'Running';
+        virtualizationStatusValue.className = 'status-value running';
+      } else {
+        virtualizationStatusValue.textContent = 'Stopped';
+        virtualizationStatusValue.className = 'status-value stopped';
+      }
+
+      if (vpnConnected) {
+        vpnStatusValue.textContent = 'Connected';
+        vpnStatusValue.className = 'status-value connected';
+      } else {
+        vpnStatusValue.textContent = 'Disconnected';
+        vpnStatusValue.className = 'status-value disconnected';
+      }
+
+      if (currentGeolocation) {
+        geoStatusValue.textContent = `${currentGeolocation.city}, ${currentGeolocation.country}`;
+      } else {
+        geoStatusValue.textContent = 'Unknown';
+      }
+    }
+
+    // Extend the existing update functions to also update status bar
+    const originalUpdateVirtualizationStatus = updateVirtualizationStatus;
+    updateVirtualizationStatus = function(isActive) {
+      originalUpdateVirtualizationStatus(isActive);
+      updateStatusBar();
+    };
+
+    const originalUpdateVpnInfo = updateVpnInfo;
+    updateVpnInfo = function(connected, location) {
+      originalUpdateVpnInfo(connected, location);
+      updateStatusBar();
+    };
+
+    const originalUpdateGeolocationInfo = updateGeolocationInfo;
+    updateGeolocationInfo = function(geo) {
+      originalUpdateGeolocationInfo(geo);
+      updateStatusBar();
+    };
+
+    // Initialize logs and status
     window.addEventListener('DOMContentLoaded', async () => {
       try {
         showLoading();
@@ -804,6 +1112,12 @@
         // Get VPN status
         const vpnStatus = await window.electronAPI.getVpnStatus();
         updateVpnInfo(vpnStatus.connected, vpnStatus.location);
+
+        // Load existing logs
+        await loadExistingLogs();
+
+        // Update status bar
+        updateStatusBar();
       } catch (error) {
         console.error('Failed to initialize:', error);
         currentUrl = 'https://www.youtube.com';
@@ -844,34 +1158,6 @@
       }
     });
 
-    // Add additional events to improve error handling
-    webview.addEventListener('crashed', () => {
-      console.error('WebView crashed');
-      showError('The YouTube view has crashed. Please try reloading.');
-    });
-
-    webview.addEventListener('plugin-crashed', () => {
-      console.error('Plugin crashed');
-      showError('A plugin has crashed. Please try reloading.');
-    });
-
-    webview.addEventListener('did-attach', () => {
-      console.log('WebView attached');
-    });
-
-    webview.addEventListener('console-message', (e) => {
-      console.log('WebView console:', e.message);
-    });
-
-    // Open settings window
-    document.getElementById('settings-btn').addEventListener('click', async () => {
-      try {
-        await window.electronAPI.openSettings();
-      } catch (error) {
-        console.error('Failed to open settings:', error);
-      }
-    });
-
     // Add keyboard shortcut for settings (Cmd+, or Ctrl+,)
     document.addEventListener('keydown', async (e) => {
       if ((e.metaKey || e.ctrlKey) && e.key === ',') {
@@ -880,26 +1166,6 @@
         } catch (error) {
           console.error('Failed to open settings:', error);
         }
-      }
-
-      // Shortcut for rotating user agent (Cmd+U or Ctrl+U)
-      if ((e.metaKey || e.ctrlKey) && e.key === 'u') {
-        e.preventDefault();
-        const userAgent = await window.electronAPI.getCurrentUserAgent();
-        updateUserAgentDisplay(userAgent);
-      }
-
-      // Shortcut for videos panel (Cmd+L or Ctrl+L)
-      if ((e.metaKey || e.ctrlKey) && e.key === 'l') {
-        e.preventDefault();
-        videosPanel.classList.toggle('visible');
-      }
-
-      // Shortcut for rotating geolocation (Cmd+G or Ctrl+G)
-      if ((e.metaKey || e.ctrlKey) && e.key === 'g') {
-        e.preventDefault();
-        const geo = await window.electronAPI.rotateGeolocation();
-        updateGeolocationInfo(geo);
       }
 
       // Shortcut for virtualization control (Cmd+Shift+V to start, Cmd+Shift+X to stop)
