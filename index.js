@@ -1,4 +1,11 @@
-const { app, BrowserWindow, ipcMain, session, Menu } = require("electron");
+const {
+  app,
+  BrowserWindow,
+  ipcMain,
+  session,
+  Menu,
+  clipboard,
+} = require("electron");
 const path = require("path");
 const fs = require("fs");
 const { spawn, exec } = require("child_process");
@@ -774,6 +781,43 @@ function stopVirtualizationSession() {
   }
 }
 
+// Helper function to setup browser window with proper paste support
+function createWindowWithPasteSupport(options) {
+  const win = new BrowserWindow({
+    ...options,
+    webPreferences: {
+      ...options.webPreferences,
+      spellcheck: true,
+    },
+  });
+
+  // Setup clipboard menu for all windows
+  win.webContents.on("context-menu", (event, params) => {
+    const { selectionText, isEditable, editFlags } = params;
+
+    if (isEditable) {
+      const menuTemplate = [
+        { label: "Cut", role: "cut", enabled: editFlags.canCut },
+        { label: "Copy", role: "copy", enabled: editFlags.canCopy },
+        { label: "Paste", role: "paste", enabled: editFlags.canPaste },
+        { type: "separator" },
+        { label: "Select All", role: "selectAll" },
+      ];
+
+      Menu.buildFromTemplate(menuTemplate).popup(win);
+    } else if (selectionText && selectionText.trim() !== "") {
+      // Text selection menu
+      Menu.buildFromTemplate([
+        { label: "Copy", role: "copy" },
+        { type: "separator" },
+        { label: "Select All", role: "selectAll" },
+      ]).popup(win);
+    }
+  });
+
+  return win;
+}
+
 function createMainWindow() {
   const settings = loadSettings();
 
@@ -817,6 +861,8 @@ function createMainWindow() {
       "midiSysex",
       "pointerLock",
       "fullscreen",
+      "clipboard-read",
+      "clipboard-write",
     ];
     if (allowedPermissions.includes(permission)) {
       return callback(true);
@@ -851,6 +897,8 @@ function createMainWindow() {
         "midiSysex",
         "pointerLock",
         "fullscreen",
+        "clipboard-read",
+        "clipboard-write",
       ];
       if (allowedPermissions.includes(permission)) {
         return callback(true);
@@ -867,7 +915,8 @@ function createMainWindow() {
     callback({ requestHeaders });
   });
 
-  mainWindow = new BrowserWindow({
+  // Create main window using our helper
+  mainWindow = createWindowWithPasteSupport({
     width: 1200,
     height: 800,
     webPreferences: {
@@ -1000,7 +1049,8 @@ function createMainWindow() {
 }
 
 function createSettingsWindow() {
-  settingsWindow = new BrowserWindow({
+  // Create settings window using our helper
+  settingsWindow = createWindowWithPasteSupport({
     width: 600,
     height: 800, // Increased height to accommodate new settings
     parent: mainWindow,
@@ -1147,4 +1197,23 @@ ipcMain.handle("disconnect-vpn", async () => {
 
 ipcMain.handle("rotate-vpn", async () => {
   return await rotateVpn();
+});
+
+// Add IPC handlers for clipboard operations
+ipcMain.handle("clipboard-read-text", () => {
+  return clipboard.readText();
+});
+
+ipcMain.handle("clipboard-write-text", (event, text) => {
+  clipboard.writeText(text);
+  return true;
+});
+
+ipcMain.handle("clipboard-read-html", () => {
+  return clipboard.readHTML();
+});
+
+ipcMain.handle("clipboard-write-html", (event, html) => {
+  clipboard.writeHTML(html);
+  return true;
 });

@@ -155,6 +155,25 @@
       background: #FFEBEE;
       color: #C62828;
     }
+    .toast {
+      position: fixed;
+      bottom: 20px;
+      left: 50%;
+      transform: translateX(-50%);
+      background: rgba(0, 0, 0, 0.8);
+      color: white;
+      padding: 10px 15px;
+      border-radius: 4px;
+      font-size: 14px;
+      z-index: 9999;
+      opacity: 0;
+      transition: opacity 0.3s, transform 0.3s;
+      pointer-events: none;
+    }
+    .toast.visible {
+      opacity: 1;
+      transform: translateX(-50%) translateY(-10px);
+    }
   </style>
 </head>
 <body>
@@ -241,6 +260,8 @@
       </div>
     </form>
   </div>
+
+  <div id="clipboard-toast" class="toast">Copied to clipboard!</div>
 
   <script>
     // Load settings
@@ -681,6 +702,27 @@
         vpnStatus.textContent = `VPN test error: ${error.message || 'Unknown error'}`;
         vpnStatus.className = 'status-message error';
       }
+    });
+
+    // Function to show clipboard toast notification
+    function showToast(message, duration = 2000) {
+      const toast = document.getElementById('clipboard-toast');
+      toast.textContent = message;
+      toast.classList.add('visible');
+
+      setTimeout(() => {
+        toast.classList.remove('visible');
+      }, duration);
+    }
+
+    // Show toast when text is copied
+    document.addEventListener('copy', () => {
+      showToast('Copied to clipboard!');
+    });
+
+    // Show toast when text is pasted
+    document.addEventListener('paste', () => {
+      showToast('Pasted from clipboard!');
     });
   </script>
 </body>

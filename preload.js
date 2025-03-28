@@ -1,5 +1,13 @@
 const { contextBridge, ipcRenderer } = require("electron");
 
+// Expose clipboard functionality via IPC
+contextBridge.exposeInMainWorld("electronClipboard", {
+  readText: () => ipcRenderer.invoke("clipboard-read-text"),
+  writeText: (text) => ipcRenderer.invoke("clipboard-write-text", text),
+  readHTML: () => ipcRenderer.invoke("clipboard-read-html"),
+  writeHTML: (html) => ipcRenderer.invoke("clipboard-write-html", html),
+});
+
 contextBridge.exposeInMainWorld("electronAPI", {
   getSettings: () => ipcRenderer.invoke("get-settings"),
   saveSettings: (settings) => ipcRenderer.invoke("save-settings", settings),
