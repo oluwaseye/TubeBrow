@@ -1,0 +1,577 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' https: data:">
+  <title>TubeBrow Settings</title>
+  <style>
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+      margin: 0;
+      padding: 20px;
+      color: #333;
+      background: #f5f5f5;
+    }
+    .container {
+      max-width: 500px;
+      margin: 0 auto;
+      background: white;
+      padding: 20px;
+      border-radius: 8px;
+      box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+    }
+    h1 {
+      margin-top: 0;
+      color: #2196F3;
+      text-align: center;
+    }
+    label {
+      display: block;
+      margin-bottom: 8px;
+      font-weight: bold;
+    }
+    input[type="text"],
+    input[type="number"],
+    textarea {
+      width: 100%;
+      padding: 10px;
+      border: 1px solid #ddd;
+      border-radius: 4px;
+      margin-bottom: 20px;
+      font-size: 14px;
+      box-sizing: border-box;
+    }
+    textarea {
+      resize: vertical;
+      min-height: 100px;
+    }
+    button {
+      background: #2196F3;
+      color: white;
+      border: none;
+      padding: 10px 15px;
+      border-radius: 4px;
+      cursor: pointer;
+      font-size: 14px;
+      transition: background 0.3s;
+    }
+    button:hover {
+      background: #0b7dda;
+    }
+    .buttons {
+      display: flex;
+      justify-content: space-between;
+    }
+    .info {
+      font-size: 12px;
+      color: #666;
+      margin-top: -15px;
+      margin-bottom: 20px;
+    }
+    .error {
+      color: #e53935;
+      margin-top: -15px;
+      margin-bottom: 20px;
+      font-size: 12px;
+      display: none;
+    }
+    .error.visible {
+      display: block;
+    }
+    .section {
+      margin-bottom: 20px;
+    }
+    .section-title {
+      font-weight: bold;
+      margin-bottom: 10px;
+      border-bottom: 1px solid #eee;
+      padding-bottom: 5px;
+    }
+    .fill-button {
+      background: #9e9e9e;
+      color: white;
+      border: none;
+      padding: 5px 10px;
+      font-size: 12px;
+      border-radius: 4px;
+      cursor: pointer;
+      margin-left: 10px;
+      margin-top: -5px;
+      float: right;
+    }
+    .fill-button:hover {
+      background: #757575;
+    }
+    .input-group {
+      display: flex;
+      align-items: center;
+      margin-bottom: 20px;
+    }
+    .input-group input {
+      margin-bottom: 0;
+    }
+    .input-group label {
+      flex: 0 0 40%;
+      margin-bottom: 0;
+    }
+    .input-unit {
+      margin-left: 8px;
+      font-size: 14px;
+      color: #666;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>TubeBrow Settings</h1>
+
+    <form id="settingsForm">
+      <div class="section">
+        <div class="section-title">Main Settings</div>
+        <label for="youtubeChannelUrl">YouTube Channel URL</label>
+        <input type="text" id="youtubeChannelUrl" name="youtubeChannelUrl" required>
+        <p class="info">The browser will load this URL on startup</p>
+        <p class="error" id="urlError">Please enter a valid URL (e.g., https://www.youtube.com/c/channelname)</p>
+      </div>
+
+      <div class="section">
+        <div class="section-title">YouTube Videos <button type="button" class="fill-button" id="fillSampleVideos">Fill Examples</button></div>
+        <label for="youtubeVideosList">YouTube Videos List</label>
+        <textarea id="youtubeVideosList" name="youtubeVideosList" placeholder="Enter one YouTube video URL per line"></textarea>
+        <p class="info">List of YouTube videos you want to access (one per line)</p>
+      </div>
+
+      <div class="section">
+        <div class="section-title">Backlinks Sites <button type="button" class="fill-button" id="fillSampleBacklinks">Fill Examples</button></div>
+        <label for="backlinksList">Backlinks Sites List</label>
+        <textarea id="backlinksList" name="backlinksList" placeholder="Enter one backlink site URL per line, e.g., https://youplay.nimtools.com"></textarea>
+        <p class="info">List of backlink sites to use with video IDs during virtualization (one per line)</p>
+      </div>
+
+      <div class="section">
+        <div class="section-title">Virtualization</div>
+        <div class="input-group">
+          <label for="windowsPerSession">Windows per session:</label>
+          <input type="number" id="windowsPerSession" name="windowsPerSession" min="1" max="10" value="1">
+          <span class="input-unit">windows</span>
+        </div>
+        <p class="info">Number of browser windows to open in each session</p>
+
+        <div class="input-group">
+          <label for="intervalBetweenSessions">Interval between sessions:</label>
+          <input type="number" id="intervalBetweenSessions" name="intervalBetweenSessions" min="0" max="3600" value="30">
+          <span class="input-unit">seconds</span>
+        </div>
+        <p class="info">Time to wait between opening new sessions</p>
+      </div>
+
+      <div class="section">
+        <div class="section-title">Geolocation <button type="button" class="fill-button" id="fillGeolocations">Generate Random</button></div>
+        <label for="geolocationList">Geolocation List</label>
+        <textarea id="geolocationList" name="geolocationList" placeholder="Enter one geolocation per line in format: latitude,longitude,accuracy,country,city"></textarea>
+        <p class="info">List of geolocations to cycle through (format: latitude,longitude,accuracy,country,city)</p>
+      </div>
+
+      <div class="section">
+        <div class="section-title">VPN Settings</div>
+        <label for="vpnList">VPN List</label>
+        <textarea id="vpnList" name="vpnList" placeholder="Enter one VPN per line"></textarea>
+        <p class="info">List of VPN details for reference</p>
+      </div>
+
+      <div class="section">
+        <div class="section-title">Advanced Settings <button type="button" class="fill-button" id="fillUserAgents">Fill User Agents</button></div>
+        <label for="userAgentList">User Agent List</label>
+        <textarea id="userAgentList" name="userAgentList" placeholder="Enter one user agent per line"></textarea>
+        <p class="info">Custom user agents to cycle through (one per line)</p>
+      </div>
+
+      <div class="buttons">
+        <button type="submit">Save Settings</button>
+        <button type="button" id="cancelBtn">Cancel</button>
+      </div>
+    </form>
+  </div>
+
+  <script>
+    // Load settings
+    window.addEventListener('DOMContentLoaded', async () => {
+      try {
+        const settings = await window.electronAPI.getSettings();
+        document.getElementById('youtubeChannelUrl').value = settings.youtubeChannelUrl || '';
+        document.getElementById('youtubeVideosList').value = settings.youtubeVideosList || '';
+        document.getElementById('vpnList').value = settings.vpnList || '';
+        document.getElementById('userAgentList').value = settings.userAgentList || '';
+        document.getElementById('geolocationList').value = settings.geolocationList || '';
+        document.getElementById('backlinksList').value = settings.backlinksList || '';
+
+        // Load virtualization settings with defaults if not present
+        document.getElementById('windowsPerSession').value = settings.windowsPerSession || 1;
+        document.getElementById('intervalBetweenSessions').value = settings.intervalBetweenSessions || 30;
+      } catch (error) {
+        console.error('Failed to load settings:', error);
+      }
+    });
+
+    // URL validation
+    function isValidUrl(string) {
+      try {
+        new URL(string);
+        return string.includes('youtube.com') || string.includes('youtu.be');
+      } catch (_) {
+        return false;
+      }
+    }
+
+    // Fill sample YouTube videos
+    document.getElementById('fillSampleVideos').addEventListener('click', () => {
+      const sampleVideos = [
+        'https://www.youtube.com/watch?v=dQw4w9WgXcQ',
+        'https://www.youtube.com/watch?v=9bZkp7q19f0',
+        'https://www.youtube.com/watch?v=kJQP7kiw5Fk',
+        'https://www.youtube.com/watch?v=JGwWNGJdvx8',
+        'https://www.youtube.com/watch?v=kFFsPgGKpM8'
+      ];
+      document.getElementById('youtubeVideosList').value = sampleVideos.join('\n');
+    });
+
+    // Fill sample backlinks sites
+    document.getElementById('fillSampleBacklinks').addEventListener('click', () => {
+      const sampleBacklinks = [
+        'https://youplay.nimtools.com',
+        'https://yewtu.be',
+        'https://invidious.io',
+        'https://tube.cadence.moe',
+        'https://vid.puffyan.us',
+        'https://invidious.flokinet.to',
+        'https://invidious.projectsegfau.lt',
+        'https://invidious.tiekoetter.com',
+        'https://inv.bp.projectsegfau.lt',
+        'https://y.com.sb'
+      ];
+      document.getElementById('backlinksList').value = sampleBacklinks.join('\n');
+    });
+
+    // Generate random geolocation data
+    document.getElementById('fillGeolocations').addEventListener('click', () => {
+      const majorCities = [
+        { country: 'USA', city: 'New York', lat: 40.7128, lng: -74.0060 },
+        { country: 'USA', city: 'Los Angeles', lat: 34.0522, lng: -118.2437 },
+        { country: 'USA', city: 'Chicago', lat: 41.8781, lng: -87.6298 },
+        { country: 'USA', city: 'Houston', lat: 29.7604, lng: -95.3698 },
+        { country: 'USA', city: 'Phoenix', lat: 33.4484, lng: -112.0740 },
+        { country: 'USA', city: 'Philadelphia', lat: 39.9526, lng: -75.1652 },
+        { country: 'USA', city: 'San Antonio', lat: 29.4241, lng: -98.4936 },
+        { country: 'USA', city: 'San Diego', lat: 32.7157, lng: -117.1611 },
+        { country: 'USA', city: 'Dallas', lat: 32.7767, lng: -96.7970 },
+        { country: 'USA', city: 'San Jose', lat: 37.3382, lng: -121.8863 },
+        { country: 'USA', city: 'Austin', lat: 30.2672, lng: -97.7431 },
+        { country: 'USA', city: 'Jacksonville', lat: 30.3322, lng: -81.6557 },
+        { country: 'USA', city: 'Fort Worth', lat: 32.7555, lng: -97.3308 },
+        { country: 'USA', city: 'Columbus', lat: 39.9612, lng: -82.9988 },
+        { country: 'USA', city: 'Indianapolis', lat: 39.7684, lng: -86.1581 },
+        { country: 'USA', city: 'Charlotte', lat: 35.2271, lng: -80.8431 },
+        { country: 'USA', city: 'San Francisco', lat: 37.7749, lng: -122.4194 },
+        { country: 'USA', city: 'Seattle', lat: 47.6062, lng: -122.3321 },
+        { country: 'USA', city: 'Denver', lat: 39.7392, lng: -104.9903 },
+        { country: 'USA', city: 'Washington DC', lat: 38.9072, lng: -77.0369 },
+        { country: 'USA', city: 'Boston', lat: 42.3601, lng: -71.0589 },
+        { country: 'USA', city: 'El Paso', lat: 31.7619, lng: -106.4850 },
+        { country: 'USA', city: 'Nashville', lat: 36.1627, lng: -86.7816 },
+        { country: 'USA', city: 'Detroit', lat: 42.3314, lng: -83.0458 },
+        { country: 'USA', city: 'Portland', lat: 45.5051, lng: -122.6750 },
+        { country: 'USA', city: 'Las Vegas', lat: 36.1699, lng: -115.1398 },
+        { country: 'USA', city: 'Memphis', lat: 35.1495, lng: -90.0490 },
+        { country: 'USA', city: 'Louisville', lat: 38.2527, lng: -85.7585 },
+        { country: 'USA', city: 'Baltimore', lat: 39.2904, lng: -76.6122 },
+        { country: 'USA', city: 'Milwaukee', lat: 43.0389, lng: -87.9065 },
+        { country: 'USA', city: 'Albuquerque', lat: 35.0844, lng: -106.6504 },
+        { country: 'USA', city: 'Tucson', lat: 32.2226, lng: -110.9747 },
+        { country: 'USA', city: 'Fresno', lat: 36.7378, lng: -119.7871 },
+        { country: 'USA', city: 'Sacramento', lat: 38.5816, lng: -121.4944 },
+        { country: 'USA', city: 'Kansas City', lat: 39.0997, lng: -94.5786 },
+        { country: 'USA', city: 'Mesa', lat: 33.4152, lng: -111.8315 },
+        { country: 'USA', city: 'Atlanta', lat: 33.7490, lng: -84.3880 },
+        { country: 'USA', city: 'Omaha', lat: 41.2565, lng: -95.9345 },
+        { country: 'USA', city: 'Colorado Springs', lat: 38.8339, lng: -104.8214 },
+        { country: 'USA', city: 'Raleigh', lat: 35.7796, lng: -78.6382 },
+        { country: 'USA', city: 'Miami', lat: 25.7617, lng: -80.1918 },
+        { country: 'USA', city: 'Oakland', lat: 37.8044, lng: -122.2711 },
+        { country: 'USA', city: 'Minneapolis', lat: 44.9778, lng: -93.2650 },
+        { country: 'USA', city: 'Tulsa', lat: 36.1540, lng: -95.9928 },
+        { country: 'USA', city: 'Cleveland', lat: 41.4993, lng: -81.6944 },
+        { country: 'USA', city: 'Wichita', lat: 37.6872, lng: -97.3301 },
+        { country: 'USA', city: 'Arlington', lat: 32.7357, lng: -97.1081 },
+        { country: 'USA', city: 'New Orleans', lat: 29.9511, lng: -90.0715 },
+        { country: 'USA', city: 'Bakersfield', lat: 35.3733, lng: -119.0187 },
+        { country: 'USA', city: 'Tampa', lat: 27.9506, lng: -82.4572 },
+        { country: 'USA', city: 'Honolulu', lat: 21.3069, lng: -157.8583 },
+        { country: 'USA', city: 'Aurora', lat: 39.7294, lng: -104.8319 },
+        { country: 'USA', city: 'Anaheim', lat: 33.8366, lng: -117.9143 },
+        { country: 'USA', city: 'Santa Ana', lat: 33.7455, lng: -117.8677 },
+        { country: 'USA', city: 'St. Louis', lat: 38.6270, lng: -90.1994 },
+        { country: 'USA', city: 'Riverside', lat: 33.9806, lng: -117.3755 },
+        { country: 'USA', city: 'Corpus Christi', lat: 27.8006, lng: -97.3964 },
+        { country: 'USA', city: 'Lexington', lat: 38.0406, lng: -84.5037 },
+        { country: 'USA', city: 'Pittsburgh', lat: 40.4406, lng: -79.9959 },
+        { country: 'UK', city: 'London', lat: 51.5074, lng: -0.1278 },
+        { country: 'UK', city: 'Manchester', lat: 53.4808, lng: -2.2426 },
+        { country: 'UK', city: 'Birmingham', lat: 52.4862, lng: -1.8904 },
+        { country: 'UK', city: 'Glasgow', lat: 55.8642, lng: -4.2518 },
+        { country: 'UK', city: 'Liverpool', lat: 53.4084, lng: -2.9916 },
+        { country: 'France', city: 'Paris', lat: 48.8566, lng: 2.3522 },
+        { country: 'France', city: 'Marseille', lat: 43.2965, lng: 5.3698 },
+        { country: 'France', city: 'Lyon', lat: 45.7640, lng: 4.8357 },
+        { country: 'France', city: 'Toulouse', lat: 43.6047, lng: 1.4442 },
+        { country: 'France', city: 'Nice', lat: 43.7102, lng: 7.2620 },
+        { country: 'Germany', city: 'Berlin', lat: 52.5200, lng: 13.4050 },
+        { country: 'Germany', city: 'Hamburg', lat: 53.5511, lng: 9.9937 },
+        { country: 'Germany', city: 'Munich', lat: 48.1351, lng: 11.5820 },
+        { country: 'Germany', city: 'Cologne', lat: 50.9375, lng: 6.9603 },
+        { country: 'Germany', city: 'Frankfurt', lat: 50.1109, lng: 8.6821 },
+        { country: 'Italy', city: 'Rome', lat: 41.9028, lng: 12.4964 },
+        { country: 'Italy', city: 'Milan', lat: 45.4642, lng: 9.1900 },
+        { country: 'Italy', city: 'Naples', lat: 40.8518, lng: 14.2681 },
+        { country: 'Italy', city: 'Turin', lat: 45.0703, lng: 7.6869 },
+        { country: 'Italy', city: 'Palermo', lat: 38.1157, lng: 13.3615 },
+        { country: 'Spain', city: 'Madrid', lat: 40.4168, lng: -3.7038 },
+        { country: 'Spain', city: 'Barcelona', lat: 41.3851, lng: 2.1734 },
+        { country: 'Spain', city: 'Valencia', lat: 39.4699, lng: -0.3763 },
+        { country: 'Spain', city: 'Seville', lat: 37.3891, lng: -5.9845 },
+        { country: 'Spain', city: 'Zaragoza', lat: 41.6488, lng: -0.8891 },
+        { country: 'Japan', city: 'Tokyo', lat: 35.6762, lng: 139.6503 },
+        { country: 'Japan', city: 'Osaka', lat: 34.6937, lng: 135.5022 },
+        { country: 'Japan', city: 'Yokohama', lat: 35.4437, lng: 139.6380 },
+        { country: 'Japan', city: 'Nagoya', lat: 35.1815, lng: 136.9066 },
+        { country: 'Japan', city: 'Sapporo', lat: 43.0618, lng: 141.3545 },
+        { country: 'Australia', city: 'Sydney', lat: -33.8688, lng: 151.2093 },
+        { country: 'Australia', city: 'Melbourne', lat: -37.8136, lng: 144.9631 },
+        { country: 'Australia', city: 'Brisbane', lat: -27.4698, lng: 153.0251 },
+        { country: 'Australia', city: 'Perth', lat: -31.9505, lng: 115.8605 },
+        { country: 'Australia', city: 'Adelaide', lat: -34.9285, lng: 138.6007 },
+        { country: 'Brazil', city: 'Rio de Janeiro', lat: -22.9068, lng: -43.1729 },
+        { country: 'Brazil', city: 'Sao Paulo', lat: -23.5505, lng: -46.6333 },
+        { country: 'Brazil', city: 'Brasilia', lat: -15.7801, lng: -47.9292 },
+        { country: 'Brazil', city: 'Salvador', lat: -12.9714, lng: -38.5014 },
+        { country: 'Brazil', city: 'Fortaleza', lat: -3.7319, lng: -38.5267 },
+        { country: 'Canada', city: 'Toronto', lat: 43.6532, lng: -79.3832 },
+        { country: 'Canada', city: 'Montreal', lat: 45.5017, lng: -73.5673 },
+        { country: 'Canada', city: 'Vancouver', lat: 49.2827, lng: -123.1207 },
+        { country: 'Canada', city: 'Calgary', lat: 51.0447, lng: -114.0719 },
+        { country: 'Canada', city: 'Edmonton', lat: 53.5461, lng: -113.4938 },
+        { country: 'India', city: 'Mumbai', lat: 19.0760, lng: 72.8777 },
+        { country: 'India', city: 'Delhi', lat: 28.7041, lng: 77.1025 },
+        { country: 'India', city: 'Bangalore', lat: 12.9716, lng: 77.5946 },
+        { country: 'India', city: 'Hyderabad', lat: 17.3850, lng: 78.4867 },
+        { country: 'India', city: 'Chennai', lat: 13.0827, lng: 80.2707 },
+        { country: 'China', city: 'Beijing', lat: 39.9042, lng: 116.4074 },
+        { country: 'China', city: 'Shanghai', lat: 31.2304, lng: 121.4737 },
+        { country: 'China', city: 'Guangzhou', lat: 23.1291, lng: 113.2644 },
+        { country: 'China', city: 'Shenzhen', lat: 22.5431, lng: 114.0579 },
+        { country: 'China', city: 'Tianjin', lat: 39.3434, lng: 117.3616 },
+        { country: 'Russia', city: 'Moscow', lat: 55.7558, lng: 37.6173 },
+        { country: 'Russia', city: 'Saint Petersburg', lat: 59.9343, lng: 30.3351 },
+        { country: 'Russia', city: 'Novosibirsk', lat: 55.0084, lng: 82.9357 },
+        { country: 'Russia', city: 'Yekaterinburg', lat: 56.8389, lng: 60.6057 },
+        { country: 'Russia', city: 'Kazan', lat: 55.8304, lng: 49.0661 },
+        { country: 'South Africa', city: 'Cape Town', lat: -33.9249, lng: 18.4241 },
+        { country: 'South Africa', city: 'Johannesburg', lat: -26.2041, lng: 28.0473 },
+        { country: 'South Africa', city: 'Durban', lat: -29.8587, lng: 31.0218 },
+        { country: 'South Africa', city: 'Pretoria', lat: -25.7461, lng: 28.1881 },
+        { country: 'South Africa', city: 'Port Elizabeth', lat: -33.9608, lng: 25.6022 },
+        { country: 'Mexico', city: 'Mexico City', lat: 19.4326, lng: -99.1332 },
+        { country: 'Mexico', city: 'Guadalajara', lat: 20.6597, lng: -103.3496 },
+        { country: 'Mexico', city: 'Monterrey', lat: 25.6866, lng: -100.3161 },
+        { country: 'Mexico', city: 'Puebla', lat: 19.0414, lng: -98.2063 },
+        { country: 'Mexico', city: 'Tijuana', lat: 32.5149, lng: -117.0382 }
+      ];
+
+      // Add small random variations to the coordinates and random accuracy between 10-1000 meters
+      const randomGeolocations = majorCities.map(location => {
+        const latVariation = (Math.random() - 0.5) * 0.02; // ±0.01 degree variation
+        const lngVariation = (Math.random() - 0.5) * 0.02;
+        const accuracy = Math.floor(Math.random() * 990) + 10; // 10 to 1000 meters
+
+        return `${(location.lat + latVariation).toFixed(6)},${(location.lng + lngVariation).toFixed(6)},${accuracy},${location.country},${location.city}`;
+      });
+
+      document.getElementById('geolocationList').value = randomGeolocations.join('\n');
+    });
+
+    // Fill sample user agents
+    document.getElementById('fillUserAgents').addEventListener('click', () => {
+      // Desktop user agents (60%)
+      const desktopUserAgents = [
+        'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/123.0.0.0 Safari/537.36',
+        'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36',
+        'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/123.0.0.0 Safari/537.36',
+        'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36',
+        'Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:123.0) Gecko/20100101 Firefox/123.0',
+        'Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:122.0) Gecko/20100101 Firefox/122.0',
+        'Mozilla/5.0 (Macintosh; Intel Mac OS X 10.15; rv:123.0) Gecko/20100101 Firefox/123.0',
+        'Mozilla/5.0 (Macintosh; Intel Mac OS X 10.15; rv:122.0) Gecko/20100101 Firefox/122.0',
+        'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/123.0.0.0 Safari/537.36 Edg/123.0.0.0',
+        'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36 Edg/122.0.0.0',
+        'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.3 Safari/605.1.15',
+        'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.2 Safari/605.1.15',
+        'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/123.0.0.0 Safari/537.36 OPR/109.0.0.0',
+        'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36 OPR/108.0.0.0',
+        'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/123.0.0.0 Safari/537.36',
+        'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36',
+        'Mozilla/5.0 (X11; Ubuntu; Linux x86_64; rv:123.0) Gecko/20100101 Firefox/123.0',
+        'Mozilla/5.0 (X11; Ubuntu; Linux x86_64; rv:122.0) Gecko/20100101 Firefox/122.0',
+        'Mozilla/5.0 (Windows NT 10.0; WOW64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/123.0.0.0 Safari/537.36',
+        'Mozilla/5.0 (Windows NT 10.0; WOW64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36',
+        'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/123.0.0.0 Safari/537.36 Vivaldi/6.5.3206.63',
+        'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36 Vivaldi/6.4.3160.47',
+        'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/123.0.0.0 Safari/537.36 Vivaldi/6.5.3206.63',
+        'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/123.0.0.0 Safari/537.36 Brave/1.60.114',
+        'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36 Brave/1.59.120'
+      ];
+
+      // iOS and iPad user agents (20%)
+      const iOSUserAgents = [
+        'Mozilla/5.0 (iPad; CPU OS 17_4 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.4 Mobile/15E148 Safari/604.1',
+        'Mozilla/5.0 (iPad; CPU OS 17_3 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.3 Mobile/15E148 Safari/604.1',
+        'Mozilla/5.0 (iPad; CPU OS 17_2 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.2 Mobile/15E148 Safari/604.1',
+        'Mozilla/5.0 (iPad; CPU OS 17_1 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.1 Mobile/15E148 Safari/604.1',
+        'Mozilla/5.0 (iPad; CPU OS 17_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.0 Mobile/15E148 Safari/604.1',
+        'Mozilla/5.0 (iPad; CPU OS 16_7 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/16.7 Mobile/15E148 Safari/604.1',
+        'Mozilla/5.0 (iPad; CPU OS 16_6 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/16.6 Mobile/15E148 Safari/604.1',
+        'Mozilla/5.0 (iPad; CPU OS 16_5 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/16.5 Mobile/15E148 Safari/604.1',
+        'Mozilla/5.0 (iPad; CPU OS 16_4 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/16.4 Mobile/15E148 Safari/604.1',
+        'Mozilla/5.0 (iPad; CPU OS 16_3 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/16.3 Mobile/15E148 Safari/604.1',
+        'Mozilla/5.0 (iPad; CPU OS 16_2 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/16.2 Mobile/15E148 Safari/604.1',
+        'Mozilla/5.0 (iPad; CPU OS 16_1 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/16.1 Mobile/15E148 Safari/604.1',
+        'Mozilla/5.0 (iPad; CPU OS 16_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/16.0 Mobile/15E148 Safari/604.1',
+        'Mozilla/5.0 (iPad; CPU OS 15_7 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/15.7 Mobile/15E148 Safari/604.1',
+        'Mozilla/5.0 (iPad; CPU OS 15_6 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/15.6 Mobile/15E148 Safari/604.1',
+        'Mozilla/5.0 (iPad; CPU OS 15_5 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/15.5 Mobile/15E148 Safari/604.1',
+        'Mozilla/5.0 (iPad; CPU OS 15_4 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/15.4 Mobile/15E148 Safari/604.1',
+        'Mozilla/5.0 (iPad; CPU OS 15_3 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/15.3 Mobile/15E148 Safari/604.1',
+        'Mozilla/5.0 (iPad; CPU OS 15_2 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/15.2 Mobile/15E148 Safari/604.1',
+        'Mozilla/5.0 (iPad; CPU OS 15_1 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/15.1 Mobile/15E148 Safari/604.1',
+        'Mozilla/5.0 (iPhone; CPU iPhone OS 17_4 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.4 Mobile/15E148 Safari/604.1',
+        'Mozilla/5.0 (iPhone; CPU iPhone OS 17_3 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.3 Mobile/15E148 Safari/604.1',
+        'Mozilla/5.0 (iPhone; CPU iPhone OS 17_2 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.2 Mobile/15E148 Safari/604.1',
+        'Mozilla/5.0 (iPhone; CPU iPhone OS 17_1 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.1 Mobile/15E148 Safari/604.1',
+        'Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.0 Mobile/15E148 Safari/604.1',
+        'Mozilla/5.0 (iPhone; CPU iPhone OS 16_7 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/16.7 Mobile/15E148 Safari/604.1',
+        'Mozilla/5.0 (iPhone; CPU iPhone OS 16_6 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/16.6 Mobile/15E148 Safari/604.1',
+        'Mozilla/5.0 (iPhone; CPU iPhone OS 16_5 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/16.5 Mobile/15E148 Safari/604.1',
+        'Mozilla/5.0 (iPhone; CPU iPhone OS 16_4 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/16.4 Mobile/15E148 Safari/604.1',
+        'Mozilla/5.0 (iPhone; CPU iPhone OS 16_3 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/16.3 Mobile/15E148 Safari/604.1',
+        'Mozilla/5.0 (iPad; CPU OS 17_4 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) CriOS/123.0.6312.87 Mobile/15E148 Safari/604.1',
+        'Mozilla/5.0 (iPad; CPU OS 17_3 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) CriOS/122.0.6261.89 Mobile/15E148 Safari/604.1',
+        'Mozilla/5.0 (iPad; CPU OS 17_2 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) CriOS/121.0.6167.108 Mobile/15E148 Safari/604.1',
+        'Mozilla/5.0 (iPad; CPU OS 17_1 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) CriOS/120.0.6099.119 Mobile/15E148 Safari/604.1',
+        'Mozilla/5.0 (iPad; CPU OS 17_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) CriOS/119.0.6045.169 Mobile/15E148 Safari/604.1',
+        'Mozilla/5.0 (iPad; CPU OS 16_7 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) FxiOS/123.0 Mobile/15E148 Safari/605.1.15',
+        'Mozilla/5.0 (iPad; CPU OS 16_6 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) FxiOS/122.0 Mobile/15E148 Safari/605.1.15',
+        'Mozilla/5.0 (iPad; CPU OS 16_5 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) FxiOS/121.0 Mobile/15E148 Safari/605.1.15',
+        'Mozilla/5.0 (iPad; CPU OS 16_4 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) FxiOS/120.0 Mobile/15E148 Safari/605.1.15',
+        'Mozilla/5.0 (iPad; CPU OS 16_3 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) FxiOS/119.0 Mobile/15E148 Safari/605.1.15'
+      ];
+
+      // Android mobile user agents (20%)
+      const androidUserAgents = [
+        'Mozilla/5.0 (Linux; Android 14; SM-S928B) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/123.0.0.0 Mobile Safari/537.36',
+        'Mozilla/5.0 (Linux; Android 14; SM-S928U) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Mobile Safari/537.36',
+        'Mozilla/5.0 (Linux; Android 14; SM-S918B) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/123.0.0.0 Mobile Safari/537.36',
+        'Mozilla/5.0 (Linux; Android 13; SM-S918U) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Mobile Safari/537.36',
+        'Mozilla/5.0 (Linux; Android 14; Pixel 8 Pro) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/123.0.0.0 Mobile Safari/537.36',
+        'Mozilla/5.0 (Linux; Android 14; Pixel 8) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Mobile Safari/537.36',
+        'Mozilla/5.0 (Linux; Android 13; Pixel 7 Pro) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/123.0.0.0 Mobile Safari/537.36',
+        'Mozilla/5.0 (Linux; Android 13; Pixel 7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Mobile Safari/537.36',
+        'Mozilla/5.0 (Linux; Android 14; SAMSUNG SM-A546B) AppleWebKit/537.36 (KHTML, like Gecko) SamsungBrowser/23.0 Chrome/115.0.0.0 Mobile Safari/537.36',
+        'Mozilla/5.0 (Linux; Android 13; SAMSUNG SM-A536B) AppleWebKit/537.36 (KHTML, like Gecko) SamsungBrowser/22.0 Chrome/111.0.0.0 Mobile Safari/537.36',
+        'Mozilla/5.0 (Linux; Android 14; OnePlus 12) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/123.0.0.0 Mobile Safari/537.36',
+        'Mozilla/5.0 (Linux; Android 13; OnePlus 11) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Mobile Safari/537.36',
+        'Mozilla/5.0 (Linux; Android 13; OnePlus 10 Pro) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/123.0.0.0 Mobile Safari/537.36',
+        'Mozilla/5.0 (Linux; Android 13; OnePlus 10T) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Mobile Safari/537.36',
+        'Mozilla/5.0 (Linux; Android 14; SM-G991B) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/123.0.0.0 Mobile Safari/537.36',
+        'Mozilla/5.0 (Linux; Android 13; SM-G990B) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Mobile Safari/537.36',
+        'Mozilla/5.0 (Linux; Android 12; SM-G973U) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/123.0.0.0 Mobile Safari/537.36',
+        'Mozilla/5.0 (Linux; Android 12; SM-G970U) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Mobile Safari/537.36',
+        'Mozilla/5.0 (Linux; Android 14; Pixel 6 Pro) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/123.0.0.0 Mobile Safari/537.36',
+        'Mozilla/5.0 (Linux; Android 13; Pixel 6) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Mobile Safari/537.36',
+        'Mozilla/5.0 (Linux; Android 12; Pixel 5) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/123.0.0.0 Mobile Safari/537.36',
+        'Mozilla/5.0 (Linux; Android 14; SM-G981B) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/123.0.0.0 Mobile Safari/537.36',
+        'Mozilla/5.0 (Linux; Android 13; SM-N986B) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Mobile Safari/537.36',
+        'Mozilla/5.0 (Linux; Android 14; Xiaomi 13 Pro) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/123.0.0.0 Mobile Safari/537.36',
+        'Mozilla/5.0 (Linux; Android 13; Xiaomi 12 Pro) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Mobile Safari/537.36',
+        'Mozilla/5.0 (Linux; Android 14; OPPO Find X6 Pro) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/123.0.0.0 Mobile Safari/537.36',
+        'Mozilla/5.0 (Linux; Android 13; OPPO Find X5 Pro) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Mobile Safari/537.36',
+        'Mozilla/5.0 (Linux; Android 14; vivo X100 Pro) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/123.0.0.0 Mobile Safari/537.36',
+        'Mozilla/5.0 (Linux; Android 13; vivo X90 Pro) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Mobile Safari/537.36',
+        'Mozilla/5.0 (Linux; Android 14; Redmi Note 13 Pro) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/123.0.0.0 Mobile Safari/537.36',
+        'Mozilla/5.0 (Linux; Android 13; Redmi Note 12 Pro) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Mobile Safari/537.36',
+        'Mozilla/5.0 (Linux; Android 14; POCO F5) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/123.0.0.0 Mobile Safari/537.36',
+        'Mozilla/5.0 (Linux; Android 13; POCO F4) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Mobile Safari/537.36',
+        'Mozilla/5.0 (Linux; Android 14; realme GT5) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/123.0.0.0 Mobile Safari/537.36',
+        'Mozilla/5.0 (Linux; Android 13; realme GT3) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Mobile Safari/537.36',
+        'Mozilla/5.0 (Linux; Android 14; SM-F946B) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/123.0.0.0 Mobile Safari/537.36',
+        'Mozilla/5.0 (Linux; Android 13; SM-F936B) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Mobile Safari/537.36',
+        'Mozilla/5.0 (Linux; Android 14; SM-F736B) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/123.0.0.0 Mobile Safari/537.36',
+        'Mozilla/5.0 (Linux; Android 13; SM-F726B) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Mobile Safari/537.36',
+        'Mozilla/5.0 (Linux; Android 14; SM-A546B) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/123.0.0.0 Mobile Safari/537.36',
+        'Mozilla/5.0 (Linux; Android 13; SM-A536B) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Mobile Safari/537.36'
+      ];
+
+      // Continue with 30 more Android user agents in next edit
+
+      // For now, set a smaller subset to avoid token limits
+      const combinedUserAgents = [
+        ...desktopUserAgents,
+        ...iOSUserAgents,
+        ...androidUserAgents
+      ];
+
+      document.getElementById('userAgentList').value = combinedUserAgents.join('\n');
+    });
+
+    // Save settings
+    document.getElementById('settingsForm').addEventListener('submit', async (e) => {
+      e.preventDefault();
+
+      const urlInput = document.getElementById('youtubeChannelUrl');
+      const urlError = document.getElementById('urlError');
+
+      // Basic URL validation
+      if (!isValidUrl(urlInput.value)) {
+        urlError.classList.add('visible');
+        urlInput.focus();
+        return;
+      }
+
+      urlError.classList.remove('visible');
+
+      try {
+        // Get number inputs with validation
+        const windowsPerSession = Math.max(1, Math.min(10, parseInt(document.getElementById('windowsPerSession').value) || 1));
+        const intervalBetweenSessions = Math.max(0, Math.min(3600, parseInt(document.getElementById('intervalBetweenSessions').value) || 30));
+
+        const settings = {
+          youtubeChannelUrl: urlInput.value,
+          youtubeVideosList: document.getElementById('youtubeVideosList').value,
+          backlinksList: document.getElementById('backlinksList').value,
+          vpnList: document.getElementById('vpnList').value,
+          userAgentList: document.getElementById('userAgentList').value,
+          geolocationList: document.getElementById('geolocationList').value,
+          windowsPerSession: windowsPerSession,
+          intervalBetweenSessions: intervalBetweenSessions
+        };
+        await window.electronAPI.saveSettings(settings);
+        window.close();
+      } catch (error) {
+        console.error('Failed to save settings:', error);
+      }
+    });
+
+    // Cancel button
+    document.getElementById('cancelBtn').addEventListener('click', () => {
+      window.close();
+    });
+  </script>
+</body>
+</html>

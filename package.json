@@ -4,11 +4,28 @@
   "description": "Electron Tube Browser",
   "main": "index.js",
   "scripts": {
+    "start": "electron .",
+    "dev": "electron . --enable-logging",
+    "build": "electron-builder",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
   "author": "Oluwaseye Ogunkoya",
   "license": "ISC",
   "devDependencies": {
-    "electron": "^35.1.2"
+    "electron": "^35.1.2",
+    "electron-builder": "^24.13.1"
+  },
+  "build": {
+    "appId": "com.example.tubebrow",
+    "productName": "TubeBrow",
+    "mac": {
+      "category": "public.app-category.utilities"
+    },
+    "win": {
+      "target": "nsis"
+    },
+    "linux": {
+      "target": "AppImage"
+    }
   }
 }

@@ -1,0 +1,815 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval'; style-src 'self' 'unsafe-inline'; child-src 'self' https: blob:; connect-src 'self' https:; img-src 'self' https: data: blob:; media-src 'self' https: blob:; object-src 'self' https:; frame-src 'self' https:;">
+  <title>TubeBrow</title>
+  <style>
+    body, html {
+      margin: 0;
+      padding: 0;
+      height: 100%;
+      overflow: hidden;
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+    }
+    #settings-container {
+      position: fixed;
+      top: 10px;
+      right: 10px;
+      z-index: 9999;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+    }
+    #settings-btn {
+      background: rgba(33, 150, 243, 1);
+      color: white;
+      border: none;
+      border-radius: 50%;
+      width: 50px;
+      height: 50px;
+      font-size: 24px;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: transform 0.3s, background 0.3s;
+      box-shadow: 0 2px 10px rgba(0, 0, 0, 0.3);
+    }
+    #settings-btn:hover {
+      background: #0b7dda;
+      transform: scale(1.1);
+    }
+    #settings-label {
+      background: rgba(0, 0, 0, 0.7);
+      color: white;
+      padding: 5px 10px;
+      border-radius: 4px;
+      font-size: 12px;
+      margin-top: 5px;
+      transition: opacity 0.3s;
+      opacity: 1;
+    }
+    #help-text {
+      position: fixed;
+      bottom: 20px;
+      right: 20px;
+      background: rgba(0, 0, 0, 0.7);
+      color: white;
+      padding: 10px 15px;
+      border-radius: 4px;
+      font-size: 14px;
+      z-index: 9999;
+      transition: opacity 0.5s;
+      opacity: 1;
+    }
+    #help-text.hidden {
+      opacity: 0;
+    }
+    #webview-container {
+      width: 100%;
+      height: 100vh;
+    }
+    webview {
+      width: 100%;
+      height: 100%;
+      border: none;
+    }
+    .error-message {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+      text-align: center;
+      padding: 20px;
+      color: #333;
+    }
+    #loading-status {
+      position: fixed;
+      top: 10px;
+      left: 10px;
+      background: rgba(0, 0, 0, 0.6);
+      color: white;
+      padding: 5px 10px;
+      border-radius: 4px;
+      font-size: 12px;
+      transition: opacity 0.5s;
+      opacity: 0;
+      z-index: 9999;
+    }
+    #loading-status.visible {
+      opacity: 1;
+    }
+    #error-container {
+      position: fixed;
+      left: 0;
+      top: 0;
+      width: 100%;
+      height: 100%;
+      background: white;
+      color: #333;
+      display: none;
+      flex-direction: column;
+      justify-content: center;
+      align-items: center;
+      z-index: 999;
+      text-align: center;
+      padding: 20px;
+    }
+    #error-container.visible {
+      display: flex;
+    }
+    #error-container h2 {
+      color: #e53935;
+      margin-bottom: 10px;
+    }
+    #error-container button {
+      background: #2196F3;
+      color: white;
+      border: none;
+      padding: 10px 15px;
+      border-radius: 4px;
+      cursor: pointer;
+      margin-top: 20px;
+    }
+    #videos-panel {
+      position: fixed;
+      left: 10px;
+      bottom: 10px;
+      background: rgba(0, 0, 0, 0.8);
+      color: white;
+      border-radius: 4px;
+      width: 300px;
+      max-height: 300px;
+      z-index: 999;
+      overflow: hidden;
+      transition: transform 0.3s, opacity 0.3s;
+      transform: translateY(100%);
+      opacity: 0;
+      box-shadow: 0 2px 10px rgba(0, 0, 0, 0.3);
+    }
+    #videos-panel.visible {
+      transform: translateY(0);
+      opacity: 1;
+    }
+    #videos-toggle {
+      position: fixed;
+      left: 10px;
+      bottom: 10px;
+      background: rgba(33, 150, 243, 0.9);
+      color: white;
+      border: none;
+      border-radius: 50%;
+      width: 40px;
+      height: 40px;
+      font-size: 20px;
+      cursor: pointer;
+      z-index: 1000;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      box-shadow: 0 2px 10px rgba(0, 0, 0, 0.3);
+      transition: transform 0.3s, background 0.3s;
+    }
+    #videos-toggle:hover {
+      background: #0b7dda;
+      transform: scale(1.1);
+    }
+    #videos-title {
+      padding: 10px;
+      background: #2196F3;
+      text-align: center;
+      font-weight: bold;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+    #videos-title button {
+      background: none;
+      border: none;
+      color: white;
+      font-size: 16px;
+      cursor: pointer;
+    }
+    #videos-list {
+      overflow-y: auto;
+      max-height: 250px;
+      padding: 10px;
+    }
+    .video-item {
+      padding: 8px;
+      border-bottom: 1px solid #444;
+      cursor: pointer;
+      transition: background 0.2s;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+    .video-item:hover {
+      background: rgba(255, 255, 255, 0.1);
+    }
+    .video-item:last-child {
+      border-bottom: none;
+    }
+    #user-agent-info {
+      position: fixed;
+      bottom: 10px;
+      left: 50%;
+      transform: translateX(-50%);
+      background: rgba(0, 0, 0, 0.7);
+      color: white;
+      padding: 5px 10px;
+      border-radius: 4px;
+      font-size: 11px;
+      z-index: 998;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      max-width: 500px;
+      opacity: 0;
+      transition: opacity 0.5s;
+    }
+    #user-agent-info.visible {
+      opacity: 1;
+    }
+    #virtualization-controls {
+      position: fixed;
+      top: 70px;
+      right: 10px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      z-index: 9998;
+    }
+    .control-btn {
+      margin-bottom: 10px;
+      width: 50px;
+      height: 50px;
+      border-radius: 50%;
+      background: rgba(0, 0, 0, 0.7);
+      color: white;
+      border: none;
+      font-size: 20px;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: background 0.3s, transform 0.3s;
+      box-shadow: 0 2px 10px rgba(0, 0, 0, 0.3);
+    }
+    .control-btn:hover {
+      transform: scale(1.1);
+    }
+    #start-btn {
+      background: #4CAF50;
+    }
+    #start-btn:hover {
+      background: #388E3C;
+    }
+    #stop-btn {
+      background: #F44336;
+    }
+    #stop-btn:hover {
+      background: #D32F2F;
+    }
+    .control-label {
+      background: rgba(0, 0, 0, 0.7);
+      color: white;
+      padding: 5px 10px;
+      border-radius: 4px;
+      font-size: 12px;
+      margin-bottom: 5px;
+      white-space: nowrap;
+    }
+    #virtualization-status {
+      position: fixed;
+      top: 10px;
+      left: 50%;
+      transform: translateX(-50%);
+      background: rgba(0, 0, 0, 0.7);
+      color: white;
+      padding: 5px 10px;
+      border-radius: 4px;
+      font-size: 12px;
+      z-index: 9999;
+      opacity: 0;
+      transition: opacity 0.5s;
+    }
+    #virtualization-status.active {
+      background: rgba(76, 175, 80, 0.8);
+      opacity: 1;
+    }
+    #virtualization-status.stopped {
+      background: rgba(244, 67, 54, 0.8);
+      opacity: 1;
+    }
+    #geo-controls {
+      position: fixed;
+      top: 170px;
+      right: 10px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      z-index: 9997;
+    }
+    #geo-btn {
+      background: #FF9800;
+    }
+    #geo-btn:hover {
+      background: #F57C00;
+    }
+    #geo-info {
+      position: fixed;
+      bottom: 40px;
+      left: 50%;
+      transform: translateX(-50%);
+      background: rgba(255, 152, 0, 0.8);
+      color: white;
+      padding: 5px 10px;
+      border-radius: 4px;
+      font-size: 11px;
+      z-index: 997;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      max-width: 500px;
+      opacity: 0;
+      transition: opacity 0.5s;
+    }
+    #geo-info.visible {
+      opacity: 1;
+    }
+  </style>
+</head>
+<body>
+  <div id="webview-container">
+    <webview id="youtube-webview"
+             src="about:blank"
+             allowpopups
+             allowfullscreen
+             partition="persist:youtube"
+             webpreferences="allowRunningInsecureContent=yes, autoplayPolicy=no-user-gesture-required"
+             useragent="Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"></webview>
+  </div>
+
+  <div id="error-container">
+    <h2>Failed to load content</h2>
+    <p id="error-message">There was a problem loading the page.</p>
+    <button id="retry-btn">Retry</button>
+  </div>
+
+  <div id="settings-container">
+    <button id="settings-btn" title="Settings">⚙️</button>
+    <div id="settings-label">Settings</div>
+  </div>
+
+  <div id="virtualization-controls">
+    <div class="control-label">Virtualization</div>
+    <button id="start-btn" class="control-btn" title="Start Virtualization">▶</button>
+    <button id="stop-btn" class="control-btn" title="Stop Virtualization">■</button>
+  </div>
+
+  <div id="geo-controls">
+    <div class="control-label">Geolocation</div>
+    <button id="geo-btn" class="control-btn" title="Rotate Geolocation">📍</button>
+  </div>
+
+  <div id="virtualization-status">Virtualization: Inactive</div>
+  <div id="geo-info"></div>
+
+  <button id="videos-toggle" title="YouTube Videos">▶</button>
+  <div id="videos-panel">
+    <div id="videos-title">
+      YouTube Videos
+      <button id="videos-close">×</button>
+    </div>
+    <div id="videos-list">
+      <!-- Videos will be loaded here -->
+      <div class="video-item empty">No videos added yet. Add some in settings.</div>
+    </div>
+  </div>
+
+  <div id="user-agent-info"></div>
+  <div id="loading-status">Loading...</div>
+  <div id="help-text">
+    Press Cmd+, (Mac) or Ctrl+, (Windows/Linux) or click the ⚙️ button to open Settings.
+    <a href="#" id="hide-help" style="color: #2196F3; margin-left: 10px;">Hide</a>
+  </div>
+
+  <script>
+    const webview = document.getElementById('youtube-webview');
+    const loadingStatus = document.getElementById('loading-status');
+    const helpText = document.getElementById('help-text');
+    const hideHelp = document.getElementById('hide-help');
+    const errorContainer = document.getElementById('error-container');
+    const errorMessage = document.getElementById('error-message');
+    const retryBtn = document.getElementById('retry-btn');
+    const settingsBtn = document.getElementById('settings-btn');
+    const settingsLabel = document.getElementById('settings-label');
+    const videosPanel = document.getElementById('videos-panel');
+    const videosToggle = document.getElementById('videos-toggle');
+    const videosClose = document.getElementById('videos-close');
+    const videosList = document.getElementById('videos-list');
+    const userAgentInfo = document.getElementById('user-agent-info');
+    const startBtn = document.getElementById('start-btn');
+    const stopBtn = document.getElementById('stop-btn');
+    const virtualizationStatus = document.getElementById('virtualization-status');
+    const geoBtn = document.getElementById('geo-btn');
+    const geoInfo = document.getElementById('geo-info');
+
+    let currentUrl = 'https://www.youtube.com';
+    let youtubeVideos = [];
+    let backlinksSites = [];
+    let isVirtualizationActive = false;
+    let currentGeolocation = null;
+
+    // Hide help text
+    hideHelp.addEventListener('click', (e) => {
+      e.preventDefault();
+      helpText.classList.add('hidden');
+    });
+
+    // Auto-hide help text after 10 seconds
+    setTimeout(() => {
+      helpText.classList.add('hidden');
+    }, 10000);
+
+    // Animate settings button periodically
+    setInterval(() => {
+      settingsBtn.style.transform = 'scale(1.1)';
+      setTimeout(() => {
+        settingsBtn.style.transform = 'scale(1)';
+      }, 500);
+    }, 5000);
+
+    // Videos panel toggle
+    videosToggle.addEventListener('click', () => {
+      videosPanel.classList.toggle('visible');
+    });
+
+    // Close videos panel
+    videosClose.addEventListener('click', () => {
+      videosPanel.classList.remove('visible');
+    });
+
+    // Rotate geolocation
+    geoBtn.addEventListener('click', async () => {
+      try {
+        const geo = await window.electronAPI.rotateGeolocation();
+        updateGeolocationInfo(geo);
+      } catch (error) {
+        console.error('Failed to rotate geolocation:', error);
+      }
+    });
+
+    // Start virtualization
+    startBtn.addEventListener('click', async () => {
+      try {
+        await window.electronAPI.startVirtualization();
+        updateVirtualizationStatus(true);
+      } catch (error) {
+        console.error('Failed to start virtualization:', error);
+      }
+    });
+
+    // Stop virtualization
+    stopBtn.addEventListener('click', async () => {
+      try {
+        await window.electronAPI.stopVirtualization();
+        updateVirtualizationStatus(false);
+      } catch (error) {
+        console.error('Failed to stop virtualization:', error);
+      }
+    });
+
+    // Update virtualization status display
+    function updateVirtualizationStatus(isActive) {
+      isVirtualizationActive = isActive;
+
+      virtualizationStatus.classList.remove('active', 'stopped');
+      if (isActive) {
+        virtualizationStatus.textContent = 'Virtualization: Active';
+        virtualizationStatus.classList.add('active');
+      } else {
+        virtualizationStatus.textContent = 'Virtualization: Stopped';
+        virtualizationStatus.classList.add('stopped');
+      }
+
+      // Show status for 5 seconds
+      setTimeout(() => {
+        if (!isVirtualizationActive) {
+          virtualizationStatus.classList.remove('active', 'stopped');
+        }
+      }, 5000);
+    }
+
+    // Update geolocation info display
+    function updateGeolocationInfo(geo) {
+      if (!geo) return;
+
+      currentGeolocation = geo;
+      geoInfo.textContent = `Location: ${geo.city}, ${geo.country} (${geo.latitude.toFixed(4)}, ${geo.longitude.toFixed(4)})`;
+      geoInfo.classList.add('visible');
+
+      // Show for 5 seconds
+      setTimeout(() => {
+        geoInfo.classList.remove('visible');
+      }, 5000);
+    }
+
+    // Show loading status
+    function showLoading() {
+      loadingStatus.classList.add('visible');
+    }
+
+    // Hide loading status
+    function hideLoading() {
+      loadingStatus.classList.remove('visible');
+    }
+
+    // Show error
+    function showError(message) {
+      errorMessage.textContent = message || 'There was a problem loading the page.';
+      errorContainer.classList.add('visible');
+    }
+
+    // Hide error
+    function hideError() {
+      errorContainer.classList.remove('visible');
+    }
+
+    // Process YouTube videos list
+    function processYoutubeVideos(videosList) {
+      if (!videosList) {
+        youtubeVideos = [];
+        return;
+      }
+
+      youtubeVideos = videosList.split('\n')
+        .filter(url => url.trim().length > 0)
+        .map(url => {
+          // Extract video ID if possible
+          let videoId = '';
+          let title = url;
+
+          if (url.includes('youtube.com/watch?v=')) {
+            videoId = url.split('v=')[1];
+            if (videoId.includes('&')) {
+              videoId = videoId.split('&')[0];
+            }
+          } else if (url.includes('youtu.be/')) {
+            videoId = url.split('youtu.be/')[1];
+            if (videoId.includes('?')) {
+              videoId = videoId.split('?')[0];
+            }
+          }
+
+          return { url, videoId, title };
+        });
+
+      updateVideosList();
+    }
+
+    // Update videos list in panel
+    function updateVideosList() {
+      // Clear existing content
+      videosList.innerHTML = '';
+
+      if (youtubeVideos.length === 0) {
+        const emptyItem = document.createElement('div');
+        emptyItem.className = 'video-item empty';
+        emptyItem.textContent = 'No videos added yet. Add some in settings.';
+        videosList.appendChild(emptyItem);
+        return;
+      }
+
+      // Add each video
+      youtubeVideos.forEach((video, index) => {
+        const item = document.createElement('div');
+        item.className = 'video-item';
+        item.textContent = video.title;
+        item.title = video.url;
+        item.addEventListener('click', () => {
+          showLoading();
+          hideError();
+          currentUrl = video.url;
+          webview.src = video.url;
+        });
+        videosList.appendChild(item);
+      });
+    }
+
+    // Update user agent display
+    function updateUserAgentDisplay(userAgent) {
+      userAgentInfo.textContent = `User Agent: ${userAgent}`;
+      userAgentInfo.classList.add('visible');
+
+      // Hide after 5 seconds
+      setTimeout(() => {
+        userAgentInfo.classList.remove('visible');
+      }, 5000);
+    }
+
+    // Retry loading
+    retryBtn.addEventListener('click', () => {
+      hideError();
+      showLoading();
+      webview.src = currentUrl;
+    });
+
+    // Load URL when received from main process
+    window.electronAPI.onYoutubeUrl((url) => {
+      console.log('Loading YouTube URL:', url);
+      currentUrl = url;
+      showLoading();
+      hideError();
+      webview.src = url;
+    });
+
+    // Load videos list when received from main process
+    window.electronAPI.onYoutubeVideos((videosList) => {
+      console.log('YouTube videos list updated');
+      processYoutubeVideos(videosList);
+    });
+
+    // Load backlinks sites when received from main process
+    window.electronAPI.onBacklinksSites((sitesList) => {
+      console.log('Backlinks sites list updated');
+      backlinksSites = sitesList.split('\n').filter(site => site.trim().length > 0);
+    });
+
+    // Listen for settings updates
+    window.electronAPI.onSettingsUpdated((settings) => {
+      console.log('Settings updated, loading new URL:', settings.youtubeChannelUrl);
+      currentUrl = settings.youtubeChannelUrl;
+      showLoading();
+      hideError();
+      webview.src = settings.youtubeChannelUrl;
+
+      // Update videos list
+      processYoutubeVideos(settings.youtubeVideosList);
+
+      // Update backlinks list
+      backlinksSites = (settings.backlinksList || '').split('\n').filter(site => site.trim().length > 0);
+    });
+
+    // Listen for user agent changes
+    window.electronAPI.onUserAgentChanged((userAgent) => {
+      console.log('User agent changed:', userAgent);
+      updateUserAgentDisplay(userAgent);
+    });
+
+    // Listen for geolocation changes
+    window.electronAPI.onGeolocationChanged((geo) => {
+      console.log('Geolocation changed:', geo);
+      updateGeolocationInfo(geo);
+    });
+
+    // Get initial URL and videos when page loads
+    window.addEventListener('DOMContentLoaded', async () => {
+      try {
+        showLoading();
+
+        // Get YouTube channel URL
+        const url = await window.electronAPI.getYoutubeUrl();
+        console.log('Initial URL loaded:', url);
+        if (url) {
+          currentUrl = url;
+          webview.src = url;
+        } else {
+          currentUrl = 'https://www.youtube.com';
+          webview.src = 'https://www.youtube.com';
+        }
+
+        // Get YouTube videos list
+        const videosList = await window.electronAPI.getYoutubeVideos();
+        console.log('YouTube videos list loaded');
+        processYoutubeVideos(videosList);
+
+        // Get backlinks sites list
+        const sitesList = await window.electronAPI.getBacklinksSites();
+        console.log('Backlinks sites list loaded');
+        backlinksSites = sitesList.split('\n').filter(site => site.trim().length > 0);
+
+        // Get current user agent
+        const userAgent = await window.electronAPI.getCurrentUserAgent();
+        if (userAgent) {
+          updateUserAgentDisplay(userAgent);
+        }
+
+        // Get current geolocation
+        const geo = await window.electronAPI.getCurrentGeolocation();
+        if (geo) {
+          updateGeolocationInfo(geo);
+        }
+      } catch (error) {
+        console.error('Failed to initialize:', error);
+        currentUrl = 'https://www.youtube.com';
+        webview.src = 'https://www.youtube.com';
+      }
+    });
+
+    // Webview event handlers
+    webview.addEventListener('did-start-loading', () => {
+      showLoading();
+    });
+
+    webview.addEventListener('did-finish-load', () => {
+      hideLoading();
+      hideError();
+    });
+
+    webview.addEventListener('did-fail-load', (event) => {
+      console.log('Load failed with error:', event.errorCode, event.errorDescription, event.validatedURL);
+
+      // Ignore certain error codes that are often transient or not critical
+      const ignoredErrors = [-3, -27, -30, -300];
+
+      if (!ignoredErrors.includes(event.errorCode) &&
+          !event.validatedURL.startsWith('about:') &&
+          !event.validatedURL.includes('chrome-error://')) {
+
+        hideLoading();
+        showError(`Error ${event.errorCode}: ${event.errorDescription}`);
+
+        // Try to reload after a short delay for certain non-critical errors
+        if (event.errorCode === -105 || event.errorCode === -102) {
+          setTimeout(() => {
+            hideError();
+            webview.reload();
+          }, 2000);
+        }
+      }
+    });
+
+    // Add additional events to improve error handling
+    webview.addEventListener('crashed', () => {
+      console.error('WebView crashed');
+      showError('The YouTube view has crashed. Please try reloading.');
+    });
+
+    webview.addEventListener('plugin-crashed', () => {
+      console.error('Plugin crashed');
+      showError('A plugin has crashed. Please try reloading.');
+    });
+
+    webview.addEventListener('did-attach', () => {
+      console.log('WebView attached');
+    });
+
+    webview.addEventListener('console-message', (e) => {
+      console.log('WebView console:', e.message);
+    });
+
+    // Open settings window
+    document.getElementById('settings-btn').addEventListener('click', async () => {
+      try {
+        await window.electronAPI.openSettings();
+      } catch (error) {
+        console.error('Failed to open settings:', error);
+      }
+    });
+
+    // Add keyboard shortcut for settings (Cmd+, or Ctrl+,)
+    document.addEventListener('keydown', async (e) => {
+      if ((e.metaKey || e.ctrlKey) && e.key === ',') {
+        try {
+          await window.electronAPI.openSettings();
+        } catch (error) {
+          console.error('Failed to open settings:', error);
+        }
+      }
+
+      // Shortcut for rotating user agent (Cmd+U or Ctrl+U)
+      if ((e.metaKey || e.ctrlKey) && e.key === 'u') {
+        e.preventDefault();
+        const userAgent = await window.electronAPI.getCurrentUserAgent();
+        updateUserAgentDisplay(userAgent);
+      }
+
+      // Shortcut for videos panel (Cmd+L or Ctrl+L)
+      if ((e.metaKey || e.ctrlKey) && e.key === 'l') {
+        e.preventDefault();
+        videosPanel.classList.toggle('visible');
+      }
+
+      // Shortcut for rotating geolocation (Cmd+G or Ctrl+G)
+      if ((e.metaKey || e.ctrlKey) && e.key === 'g') {
+        e.preventDefault();
+        const geo = await window.electronAPI.rotateGeolocation();
+        updateGeolocationInfo(geo);
+      }
+
+      // Shortcut for virtualization control (Cmd+Shift+V to start, Cmd+Shift+X to stop)
+      if ((e.metaKey || e.ctrlKey) && e.shiftKey && e.key === 'V') {
+        e.preventDefault();
+        await window.electronAPI.startVirtualization();
+        updateVirtualizationStatus(true);
+      }
+
+      if ((e.metaKey || e.ctrlKey) && e.shiftKey && e.key === 'X') {
+        e.preventDefault();
+        await window.electronAPI.stopVirtualization();
+        updateVirtualizationStatus(false);
+      }
+    });
+  </script>
+</body>
+</html>
