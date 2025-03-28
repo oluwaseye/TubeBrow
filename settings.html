@@ -229,10 +229,6 @@
 
       <div class="section">
         <div class="section-title">VPN Settings</div>
-        <label for="vpnList">VPN List</label>
-        <textarea id="vpnList" name="vpnList" placeholder="Enter one VPN per line"></textarea>
-        <p class="info">List of VPN details for reference</p>
-
         <div class="input-group">
           <label for="vpnEnabled">Enable VPN for virtualization:</label>
           <input type="checkbox" id="vpnEnabled" name="vpnEnabled">
@@ -270,10 +266,9 @@
         const settings = await window.electronAPI.getSettings();
         document.getElementById('youtubeChannelUrl').value = settings.youtubeChannelUrl || '';
         document.getElementById('youtubeVideosList').value = settings.youtubeVideosList || '';
-        document.getElementById('vpnList').value = settings.vpnList || '';
+        document.getElementById('backlinksList').value = settings.backlinksList || '';
         document.getElementById('userAgentList').value = settings.userAgentList || '';
         document.getElementById('geolocationList').value = settings.geolocationList || '';
-        document.getElementById('backlinksList').value = settings.backlinksList || '';
         document.getElementById('mullvadFolderPath').value = settings.mullvadFolderPath || '';
         document.getElementById('vpnEnabled').checked = settings.vpnEnabled || false;
 
@@ -627,7 +622,6 @@
           youtubeChannelUrl: urlInput.value,
           youtubeVideosList: document.getElementById('youtubeVideosList').value,
           backlinksList: document.getElementById('backlinksList').value,
-          vpnList: document.getElementById('vpnList').value,
           userAgentList: document.getElementById('userAgentList').value,
           geolocationList: document.getElementById('geolocationList').value,
           windowsPerSession: windowsPerSession,
